@@ -19,6 +19,7 @@ let winningNumber = null;
 let maxNumber = 1000;
 let players = [];
 let results = [];
+let gameStartTime = null;
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
@@ -27,7 +28,7 @@ io.on('connection', (socket) => {
     const player = { id: socket.id, username, finishTime: null };
     players.push(player);
     io.emit('playerList', players);
-    socket.emit('gameState', { gameState, maxNumber });
+    socket.emit('gameState', { gameState, maxNumber, gameStartTime });
   });
 
   socket.on('startGame', (config) => {
@@ -36,15 +37,16 @@ io.on('connection', (socket) => {
     gameState = 'PLAYING';
     results = [];
     players = players.map(p => ({ ...p, finishTime: null }));
-    
-    io.emit('gameStarted', { maxNumber });
-    io.emit('gameState', { gameState, maxNumber });
+    gameStartTime = Date.now();
+
+    io.emit('gameStarted', { maxNumber, gameStartTime });
+    io.emit('gameState', { gameState, maxNumber, gameStartTime });
     console.log(`Game started! Winning number: ${winningNumber}`);
   });
 
   socket.on('submitGuess', (guess) => {
     if (gameState !== 'PLAYING') return;
-    
+
     const numGuess = parseInt(guess);
     if (numGuess === winningNumber) {
       const finishTime = Date.now();
@@ -54,7 +56,7 @@ io.on('connection', (socket) => {
         results.push({ username: player.username, time: finishTime });
         socket.emit('guessResult', 'correct');
         io.emit('playerFinished', { username: player.username, results: results.slice(0, 3) });
-        
+
         if (results.length === players.length) {
           gameState = 'FINISHED';
           io.emit('gameState', { gameState, maxNumber, finalResults: results.slice(0, 3) });

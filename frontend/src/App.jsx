@@ -22,6 +22,7 @@ function App() {
       setGameState(data.gameState);
       if (data.maxNumber) setMaxNumber(data.maxNumber);
       if (data.finalResults) setResults(data.finalResults);
+      if (data.gameStartTime) setStartTime(data.gameStartTime);
     });
 
     socket.on('playerList', (list) => {
@@ -31,7 +32,7 @@ function App() {
     socket.on('gameStarted', (data) => {
       setGameState('PLAYING');
       setMaxNumber(data.maxNumber);
-      setStartTime(Date.now());
+      setStartTime(data.gameStartTime || Date.now());
       setFeedback('');
       setGuess('');
       setResults([]);
