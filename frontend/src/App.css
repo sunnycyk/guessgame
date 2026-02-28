@@ -69,6 +69,7 @@ h1 {
   font-weight: 800;
   background: linear-gradient(to right, #db2777, #9333ea);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
 }
@@ -174,6 +175,33 @@ button:active {
   font-weight: 600;
   color: #ec4899;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.player-list li.ready {
+  background: #ec4899;
+  color: white;
+  border-color: #f472b6;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.ready-button {
+  background: rgba(255, 255, 255, 0.5);
+  color: #db2777;
+  border: 2px solid #fbcfe8;
+  box-shadow: none;
+}
+
+.ready-button.active {
+  background: linear-gradient(to right, #10b981, #059669);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 8px 15px rgba(16, 185, 129, 0.3);
+}
+
+.ready-button:hover {
+  transform: scale(1.02);
 }
 
 .leaderboard ol {
