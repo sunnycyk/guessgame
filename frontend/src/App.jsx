@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import mascotLogo from './assets/logo.png';
 import './App.css';
 
 const socket = io('http://localhost:3001');
@@ -38,9 +39,9 @@ function App() {
 
     socket.on('guessResult', (result) => {
       if (result === 'correct') {
-        setFeedback('Correct! You guessed it!');
+        setFeedback('✨ Correct! You got it! ✨');
       } else {
-        setFeedback(`Try a ${result} number.`);
+        setFeedback(result === 'higher' ? 'Higher! ⤴️' : 'Lower! ⤵️');
       }
     });
 
@@ -87,7 +88,10 @@ function App() {
   if (!isJoined) {
     return (
       <div className="container">
-        <h1>Vibecodeing With Andy</h1>
+        <div className="logo-container">
+          <img src={mascotLogo} alt="Mascot" className="mascot-logo" />
+        </div>
+        <h1>Guess the Number</h1>
         <form onSubmit={handleJoin} className="form-card">
           <input
             type="text"
@@ -104,27 +108,31 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Multiplayer Guessing Game</h1>
+      <div className="logo-container">
+        <img src={mascotLogo} alt="Mascot" className="mascot-logo" />
+      </div>
+      <h1>Guess the Number</h1>
 
       <div className="status-bar">
         <span>Status: {gameState}</span>
-        {gameState === 'PLAYING' && <span className="timer">Time: {elapsed}s</span>}
+        {gameState === 'PLAYING' && <span className="timer">⏱️ {elapsed}s</span>}
       </div>
 
       {gameState === 'WAITING' && (
         <div className="lobby">
-          <h2>Lobby</h2>
           <div className="config">
-            <label>Max Number: </label>
+            <label>Max Range: </label>
             <input
               type="number"
               value={maxNumber}
               onChange={(e) => setMaxNumber(parseInt(e.target.value))}
             />
-            <button onClick={handleStart}>Start Game for Everyone</button>
+            <button onClick={handleStart} style={{ marginTop: '1rem', width: '100%' }}>
+              Start for Everyone 🚀
+            </button>
           </div>
-          <div className="player-list">
-            <h3>Players Joined:</h3>
+          <div className="player-list" style={{ marginTop: '2rem' }}>
+            <h3>Joined Players:</h3>
             <ul>
               {players.map(p => <li key={p.id}>{p.username}</li>)}
             </ul>
@@ -140,10 +148,12 @@ function App() {
               type="number"
               value={guess}
               onChange={(e) => setGuess(e.target.value)}
-              placeholder="Your guess"
+              placeholder="Your guess..."
               autoFocus
             />
-            <button type="submit">Guess</button>
+            <button type="submit" style={{ marginTop: '1rem', width: '100%' }}>
+              Check Guess
+            </button>
           </form>
           <p className="feedback">{feedback}</p>
         </div>
@@ -151,13 +161,19 @@ function App() {
 
       {(gameState === 'FINISHED' || results.length > 0) && (
         <div className="leaderboard">
-          <h2>Leaderboard (Fastest 3)</h2>
+          <h2>Leaderboard</h2>
           <ol>
             {results.map((res, i) => (
-              <li key={i}>{res.username}</li>
+              <li key={i}>
+                <span>{res.username}</span>
+              </li>
             ))}
           </ol>
-          {gameState === 'FINISHED' && <button onClick={handleStart}>Play Again</button>}
+          {gameState === 'FINISHED' && (
+            <button onClick={handleStart} style={{ width: '100%' }}>
+              Play Again 🔄
+            </button>
+          )}
         </div>
       )}
     </div>
