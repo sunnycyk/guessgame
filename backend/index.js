@@ -17,7 +17,12 @@ const io = new Server(server, {
 const rooms = new Map();
 
 function generateRoomId() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded 0, O, 1, I for clarity
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 function getRoom(socket) {

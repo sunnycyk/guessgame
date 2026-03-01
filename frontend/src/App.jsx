@@ -18,10 +18,13 @@ import EliminationLeaderboard from './components/EliminationLeaderboard';
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
 const socket = io(SOCKET_URL);
 
+const urlParams = new URLSearchParams(window.location.search);
+const roomFromUrl = urlParams.get('room') || '';
+
 function App() {
   const [username, setUsername] = useState('');
   const [roomId, setRoomId] = useState('');
-  const [joinRoomId, setJoinRoomId] = useState('');
+  const [joinRoomId, setJoinRoomId] = useState(roomFromUrl.toUpperCase());
   const [isHost, setIsHost] = useState(false);
   const [gameState, setGameState] = useState('LOBBY');
   const [guess, setGuess] = useState(500);

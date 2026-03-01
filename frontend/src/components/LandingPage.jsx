@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function LandingPage({ username, setUsername, handleCreateRoom, joinRoomId, setJoinRoomId, handleJoinRoom }) {
-    const [mode, setMode] = useState('initial'); // 'initial' | 'host' | 'join'
+    const [mode, setMode] = useState(joinRoomId ? 'join' : 'initial'); // 'initial' | 'host' | 'join'
 
     return (
         <motion.div

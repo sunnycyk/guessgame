@@ -23,7 +23,29 @@ function Lobby({
 }) {
     return (
         <div className="lobby-container">
-            <div className="room-id-badge">Game ID: {roomId}</div>
+            <div className="room-id-badge" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                <div>Game ID: {roomId}</div>
+                <button
+                    onClick={() => {
+                        const url = `${window.location.origin}?room=${roomId}`;
+                        navigator.clipboard.writeText(url);
+                        alert('Share link copied to clipboard!');
+                    }}
+                    style={{
+                        fontSize: '0.9rem',
+                        padding: '0.3rem 0.8rem',
+                        backgroundColor: 'rgba(255,255,255,0.3)',
+                        color: 'var(--text)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        marginTop: '0.5rem'
+                    }}
+                >
+                    Copy Invite Link 🔗
+                </button>
+            </div>
 
             {isHost ? (
                 <motion.div
