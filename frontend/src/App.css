@@ -45,8 +45,8 @@ body {
 
 @media (min-width: 640px) {
   .container {
-    width: 90%;
-    max-width: 650px;
+    width: 100%;
+    max-width: 768px;
     min-height: 500px;
     padding: 3rem 2rem;
     border: 1px solid var(--glass-border);
@@ -63,6 +63,7 @@ body {
     padding: 4rem 3rem;
   }
 }
+
 
 .logo-container {
   margin-bottom: 1.5rem;
