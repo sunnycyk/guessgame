@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo "Running pre-push tests..."
+
+echo "-> Running backend tests"
+cd backend || exit 1
+npm run test || exit 1
+cd ..
+
+echo "-> Running frontend tests"
+cd frontend || exit 1
+npm run test || exit 1
+cd ..
+
+echo "All tests passed! Proceeding with push."
+exit 0
