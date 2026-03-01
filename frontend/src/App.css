@@ -57,6 +57,13 @@ body {
   }
 }
 
+@media (min-width: 1024px) {
+  .container {
+    max-width: 900px;
+    padding: 4rem 3rem;
+  }
+}
+
 .logo-container {
   margin-bottom: 1.5rem;
 }
