@@ -8,6 +8,12 @@ function Lobby({
     setMaxNumber,
     playerLimit,
     setPlayerLimit,
+    gameMode,
+    setGameMode,
+    guessMode,
+    setGuessMode,
+    maxGuessesPerTarget,
+    setMaxGuessesPerTarget,
     handleConfigure,
     players,
     playerLimitConfig,
@@ -49,6 +55,75 @@ function Lobby({
                                 className="colored-input"
                             />
                         </div>
+
+                        <div className="input-group">
+                            <label>Game Mode</label>
+                            <div className="mode-selector">
+                                <button
+                                    type="button"
+                                    className={`mode-btn ${gameMode === 'classic' ? 'mode-btn-active' : ''}`}
+                                    onClick={() => setGameMode('classic')}
+                                >
+                                    Classic
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`mode-btn ${gameMode === 'elimination' ? 'mode-btn-active' : ''}`}
+                                    onClick={() => setGameMode('elimination')}
+                                >
+                                    Elimination
+                                </button>
+                            </div>
+                        </div>
+
+                        <AnimatePresence>
+                            {gameMode === 'elimination' && (
+                                <motion.div
+                                    key="elim-config"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="elim-config-section"
+                                >
+                                    <div className="input-group">
+                                        <label>Guess Mode</label>
+                                        <div className="mode-selector">
+                                            <button
+                                                type="button"
+                                                className={`mode-btn ${guessMode === 'single' ? 'mode-btn-active' : ''}`}
+                                                onClick={() => setGuessMode('single')}
+                                            >
+                                                One Target
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`mode-btn ${guessMode === 'all' ? 'mode-btn-active' : ''}`}
+                                                onClick={() => setGuessMode('all')}
+                                            >
+                                                All at Once
+                                            </button>
+                                        </div>
+                                        <p className="hint-text">
+                                            {guessMode === 'single'
+                                                ? 'Each guess targets one player you choose.'
+                                                : 'Each guess is checked against every alive player simultaneously.'}
+                                        </p>
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Max Guesses Per Target (before reroll)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={maxGuessesPerTarget || ''}
+                                            onChange={(e) => setMaxGuessesPerTarget(parseInt(e.target.value))}
+                                            className="colored-input"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         <button type="submit">Set Configuration</button>
                     </form>
                 </motion.div>
@@ -61,6 +136,12 @@ function Lobby({
                 >
                     <h2>Waiting room</h2>
                     <p>The host is setting up the game...</p>
+                    {gameMode === 'elimination' && (
+                        <div className="mode-badge elim-badge">Elimination Mode</div>
+                    )}
+                    {gameMode === 'classic' && (
+                        <div className="mode-badge classic-badge">Classic Mode</div>
+                    )}
                 </motion.div>
             )}
 

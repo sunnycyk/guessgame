@@ -459,3 +459,479 @@ button:active {
     transform: translateY(0);
   }
 }
+
+/* ===================== */
+/* === ELIMINATION MODE === */
+/* ===================== */
+
+/* Mode selector toggle buttons in Lobby */
+.mode-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mode-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.5);
+  color: #ec4899;
+  border: 2px solid #ec4899;
+  box-shadow: none;
+  padding: 0.8rem;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+  background: rgba(236, 72, 153, 0.1);
+}
+
+.mode-btn-active {
+  background: linear-gradient(to right, #ec4899, #d946ef);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35);
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.elim-badge {
+  background: linear-gradient(to right, #dc2626, #db2777);
+  color: white;
+}
+
+.classic-badge {
+  background: linear-gradient(to right, #ec4899, #d946ef);
+  color: white;
+}
+
+.elim-config-section {
+  border-top: 2px dashed rgba(236, 72, 153, 0.3);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.hint-text {
+  font-size: 0.8rem;
+  color: #9d174d;
+  margin: 0.25rem 0.5rem 0;
+  font-style: italic;
+}
+
+/* EliminationSetup */
+.elimination-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.setup-hint {
+  color: #be185d;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.setup-confirmed {
+  background: rgba(16, 185, 129, 0.12);
+  border: 2px solid #10b981;
+  border-radius: 16px;
+  padding: 1.2rem;
+  color: #065f46;
+  font-weight: 700;
+  text-align: center;
+}
+
+.input-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0;
+}
+
+/* EliminationGameplay */
+.elimination-gameplay {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.guess-mode-toggle {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.guess-mode-toggle .mode-btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+}
+
+.elim-roster {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.roster-section {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 14px;
+  padding: 0.75rem;
+  min-width: 100px;
+}
+
+.roster-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #be185d;
+  display: block;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.roster-chip {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0.2rem;
+}
+
+.alive-chip {
+  background: white;
+  color: #ec4899;
+  border: 2px solid #fbcfe8;
+}
+
+.eliminated-chip {
+  background: rgba(0, 0, 0, 0.06);
+  color: #9ca3af;
+  border: 2px solid #e5e7eb;
+  text-decoration: line-through;
+}
+
+.elim-guess-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.spectator-banner {
+  background: rgba(0, 0, 0, 0.05);
+  border: 2px dashed #d1d5db;
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.target-select {
+  width: 100%;
+  cursor: pointer;
+}
+
+.guess-mode-label {
+  font-size: 0.85rem;
+  color: #be185d;
+  font-weight: 600;
+  margin: 0;
+}
+
+.guess-input-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Public guess log */
+.elim-log {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  padding: 1rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.elim-log h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #db2777;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.log-entry {
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+  background: white;
+  border-left: 4px solid transparent;
+}
+
+.log-correct { border-left-color: #10b981; }
+.log-higher  { border-left-color: #f59e0b; }
+.log-lower   { border-left-color: #3b82f6; }
+.log-system  { border-left-color: #8b5cf6; background: #f5f3ff; font-style: italic; }
+
+.log-system-text { color: #6d28d9; }
+
+.result-correct { color: #065f46; font-weight: 800; }
+.result-higher  { color: #92400e; font-weight: 700; }
+.result-lower   { color: #1e40af; font-weight: 700; }
+
+/* EliminationLeaderboard */
+.elimination-leaderboard {}
+
+.survivor-banner {
+  background: linear-gradient(to right, #fbbf24, #f59e0b);
+  color: #78350f;
+  font-size: 1.3rem;
+  font-weight: 800;
+  padding: 1.2rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 8px 20px rgba(251, 191, 36, 0.4);
+  text-align: center;
+}
+
+.survivor-row {
+  border: 2px solid #fbbf24 !important;
+  background: #fffbeb !important;
+}
+
+/* ===================== */
+/* === PLAYER GRID    === */
+/* ===================== */
+
+.player-grid {
+  display: grid;
+  /* columns set inline via style prop (sqrt-based square layout) */
+  gap: 0.6rem;
+}
+
+.player-card {
+  background: rgba(255, 255, 255, 0.55);
+  border: 2px solid rgba(236, 72, 153, 0.2);
+  border-radius: 14px;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.player-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(236, 72, 153, 0.18);
+}
+
+.player-card-me {
+  border-color: rgba(217, 70, 239, 0.45);
+  background: rgba(253, 244, 255, 0.7);
+}
+
+.player-card-targeted {
+  border-color: #ec4899;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.25);
+}
+
+.player-card-eliminated {
+  opacity: 0.5;
+  background: rgba(240, 240, 240, 0.5);
+  border-color: #e5e7eb;
+}
+
+.player-card-eliminated:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.player-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.player-card-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #831843;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.player-card-status {
+  font-size: 0.75rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.status-alive      { color: #10b981; }
+.status-eliminated { color: #9ca3af; }
+
+.player-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.stat-cell {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  border: 1px solid rgba(236, 72, 153, 0.1);
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #be185d;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #831843;
+  line-height: 1;
+}
+
+.elim-value { color: #7c3aed; }
+
+.stat-cell-current {
+  grid-column: span 2;
+}
+
+.stat-value-current { font-size: 0.95rem; }
+
+/* Yellow: 50–75% */
+.stat-cell-warning-low {
+  background: rgba(253, 224, 71, 0.25);
+  border-color: #fbbf24;
+}
+.stat-cell-warning-low .stat-value,
+.stat-cell-warning-low .stat-label { color: #92400e; opacity: 1; }
+
+/* Orange: 75–90% */
+.stat-cell-warning-high {
+  background: rgba(251, 146, 60, 0.25);
+  border-color: #f97316;
+}
+.stat-cell-warning-high .stat-value,
+.stat-cell-warning-high .stat-label { color: #7c2d12; opacity: 1; }
+
+/* Red: 90–100% */
+.stat-cell-danger {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  animation: pulse-danger 1s ease-in-out infinite;
+}
+.stat-cell-danger .stat-value,
+.stat-cell-danger .stat-label { color: #991b1b; opacity: 1; }
+
+@keyframes pulse-danger {
+  0%, 100% { background: rgba(239, 68, 68, 0.2); }
+  50%       { background: rgba(239, 68, 68, 0.38); }
+}
+
+.guess-progress-bar-track {
+  height: 5px;
+  background: rgba(0,0,0,0.07);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.guess-progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+
+.fill-safe         { background: #34d399; }
+.fill-warning-low  { background: #fbbf24; }
+.fill-warning-high { background: #f97316; }
+.fill-danger       { background: #ef4444; }
+
+.targeted-badge {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  background: linear-gradient(to right, #ec4899, #d946ef);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 99px;
+}
+
+/* Recent guesses strip */
+.recent-guesses {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(236, 72, 153, 0.12);
+  padding-top: 0.5rem;
+}
+
+.guess-chip {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.2rem 0.45rem;
+  border-radius: 8px;
+  line-height: 1;
+}
+
+/* result 'higher': guess was too LOW → blue (need to go up) */
+.guess-chip-higher {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+/* result 'lower': guess was too HIGH → orange (need to go down) */
+.guess-chip-lower {
+  background: rgba(249, 115, 22, 0.15);
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+/* result 'correct': exact match → green */
+.guess-chip-correct {
+  background: rgba(16, 185, 129, 0.2);
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}

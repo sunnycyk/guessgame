@@ -10,6 +10,9 @@ import LandingPage from './components/LandingPage';
 import Lobby from './components/Lobby';
 import Gameplay from './components/Gameplay';
 import Leaderboard from './components/Leaderboard';
+import EliminationSetup from './components/EliminationSetup';
+import EliminationGameplay from './components/EliminationGameplay';
+import EliminationLeaderboard from './components/EliminationLeaderboard';
 
 // In production, Caddy reverse-proxies /socket.io/ on the same root domain
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
@@ -31,9 +34,26 @@ function App() {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
 
+  // Elimination mode state
+  const [gameMode, setGameMode] = useState('classic');
+  const [guessMode, setGuessMode] = useState('single');
+  const [maxGuessesPerTarget, setMaxGuessesPerTarget] = useState(20);
+  const [eliminationLog, setEliminationLog] = useState([]);
+  const [eliminationResults, setEliminationResults] = useState([]);
+  const [mySocketId, setMySocketId] = useState('');
+  const [isEliminated, setIsEliminated] = useState(false);
+  const [currentTargetId, setCurrentTargetId] = useState('');
+  // { [playerId]: { guessesMade, guessesReceived, currentGuessCount } }
+  const [guessStats, setGuessStats] = useState({});
+
   const timerRef = useRef(null);
 
   useEffect(() => {
+    setMySocketId(socket.id);
+    socket.on('connect', () => {
+      setMySocketId(socket.id);
+    });
+
     socket.on('gameState', (data) => {
       setGameState(data.gameState);
       if (data.maxNumber) setMaxNumber(data.maxNumber);
@@ -43,6 +63,10 @@ function App() {
       if (data.isHost !== undefined) setIsHost(data.isHost);
       if (data.players) setPlayers(data.players);
       if (data.roomId) setRoomId(data.roomId);
+      if (data.gameMode) setGameMode(data.gameMode);
+      if (data.guessMode) setGuessMode(data.guessMode);
+      if (data.maxGuessesPerTarget) setMaxGuessesPerTarget(data.maxGuessesPerTarget);
+      if (data.eliminationResults) setEliminationResults(data.eliminationResults);
     });
 
     socket.on('roomCreated', (data) => {
@@ -64,6 +88,77 @@ function App() {
       setGuess(Math.floor(data.maxNumber / 2));
       setResults([]);
       setElapsed(0);
+    });
+
+    socket.on('eliminationGameStarted', (data) => {
+      setGameState('PLAYING');
+      setMaxNumber(data.maxNumber);
+      setStartTime(data.gameStartTime);
+      setGuessMode(data.guessMode);
+      setMaxGuessesPerTarget(data.maxGuessesPerTarget);
+      setPlayers(data.players);
+      setEliminationLog([]);
+      setIsEliminated(false);
+      const firstTarget = data.players.find(p => p.isAlive && p.id !== socket.id);
+      if (firstTarget) setCurrentTargetId(firstTarget.id);
+      // Init stats for all players
+      const initStats = {};
+      data.players.forEach(p => {
+        initStats[p.id] = { guessesMade: 0, guessesReceived: 0, currentGuessCount: 0, recentGuesses: [] };
+      });
+      setGuessStats(initStats);
+    });
+
+    socket.on('eliminationGuessResult', (logEntry) => {
+      setEliminationLog(prev => [logEntry, ...prev]);
+      setGuessStats(prev => {
+        const next = { ...prev };
+        // Increment guesser's made count
+        if (next[logEntry.guesserSocketId]) {
+          next[logEntry.guesserSocketId] = {
+            ...next[logEntry.guesserSocketId],
+            guessesMade: next[logEntry.guesserSocketId].guessesMade + 1
+          };
+        }
+        // Increment target's received + current count, append to recentGuesses (last 5)
+        if (next[logEntry.targetSocketId]) {
+          const prev5 = next[logEntry.targetSocketId].recentGuesses ?? [];
+          const updated5 = [...prev5, { guess: logEntry.guess, result: logEntry.result }].slice(-5);
+          next[logEntry.targetSocketId] = {
+            ...next[logEntry.targetSocketId],
+            guessesReceived: next[logEntry.targetSocketId].guessesReceived + 1,
+            currentGuessCount: next[logEntry.targetSocketId].currentGuessCount + 1,
+            recentGuesses: updated5
+          };
+        }
+        return next;
+      });
+    });
+
+    socket.on('playerEliminated', (data) => {
+      if (data.eliminatedId === socket.id) {
+        setIsEliminated(true);
+      }
+    });
+
+    socket.on('targetRerolled', (data) => {
+      setEliminationLog(prev => [{
+        system: true,
+        message: `${data.targetUsername}'s number was rerolled — fresh start!`,
+        targetSocketId: data.targetSocketId
+      }, ...prev]);
+      // Reset currentGuessCount for the rerolled target
+      setGuessStats(prev => {
+        if (!prev[data.targetSocketId]) return prev;
+        return {
+          ...prev,
+          [data.targetSocketId]: {
+            ...prev[data.targetSocketId],
+            currentGuessCount: 0,
+            recentGuesses: []
+          }
+        };
+      });
     });
 
     socket.on('guessResult', (result) => {
@@ -89,10 +184,15 @@ function App() {
     });
 
     return () => {
+      socket.off('connect');
       socket.off('gameState');
       socket.off('roomCreated');
       socket.off('playerList');
       socket.off('gameStarted');
+      socket.off('eliminationGameStarted');
+      socket.off('eliminationGuessResult');
+      socket.off('playerEliminated');
+      socket.off('targetRerolled');
       socket.off('guessResult');
       socket.off('playerFinished');
       socket.off('error');
@@ -100,7 +200,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (gameState === 'PLAYING' && startTime) {
+    if (gameState === 'PLAYING' && startTime && gameMode === 'classic') {
       timerRef.current = setInterval(() => {
         const now = Date.now();
         const diff = Math.max(0, (now - startTime) / 1000);
@@ -110,7 +210,7 @@ function App() {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [gameState, startTime]);
+  }, [gameState, startTime, gameMode]);
 
   const handleCreateRoom = (e) => {
     e.preventDefault();
@@ -134,7 +234,7 @@ function App() {
 
   const handleConfigure = (e) => {
     e.preventDefault();
-    socket.emit('configureGame', { maxNumber, playerLimit });
+    socket.emit('configureGame', { maxNumber, playerLimit, gameMode, guessMode, maxGuessesPerTarget });
   };
 
   const handleStart = () => {
@@ -148,11 +248,135 @@ function App() {
 
   const handleReset = () => {
     socket.emit('resetGame');
+    setEliminationLog([]);
+    setEliminationResults([]);
+    setIsEliminated(false);
+    setCurrentTargetId('');
+    setGuessStats({});
   };
 
   const handleToggleReady = () => {
     socket.emit('toggleReady');
   };
+
+  const handleSubmitSecretNumber = (secretNumber) => {
+    socket.emit('submitSecretNumber', { secretNumber });
+  };
+
+  const handleEliminationGuess = (targetId, guessValue) => {
+    socket.emit('submitEliminationGuess', { targetId, guess: guessValue });
+  };
+
+  function renderView() {
+    if (roomId === '') {
+      return (
+        <LandingPage
+          key="landing"
+          username={username}
+          setUsername={setUsername}
+          handleCreateRoom={handleCreateRoom}
+          joinRoomId={joinRoomId}
+          setJoinRoomId={setJoinRoomId}
+          handleJoinRoom={handleJoinRoom}
+        />
+      );
+    }
+
+    if (gameState === 'LOBBY' || gameState === 'WAITING') {
+      return (
+        <Lobby
+          key="lobby"
+          roomId={roomId}
+          isHost={isHost}
+          maxNumber={maxNumber}
+          setMaxNumber={setMaxNumber}
+          playerLimit={playerLimit}
+          setPlayerLimit={setPlayerLimit}
+          gameMode={gameMode}
+          setGameMode={setGameMode}
+          guessMode={guessMode}
+          setGuessMode={setGuessMode}
+          maxGuessesPerTarget={maxGuessesPerTarget}
+          setMaxGuessesPerTarget={setMaxGuessesPerTarget}
+          handleConfigure={handleConfigure}
+          players={players}
+          playerLimitConfig={playerLimit}
+          handleToggleReady={handleToggleReady}
+          handleStart={handleStart}
+          socketId={socket.id}
+        />
+      );
+    }
+
+    if (gameMode === 'elimination') {
+      if (gameState === 'SETUP') {
+        return (
+          <EliminationSetup
+            key="elim-setup"
+            players={players}
+            maxNumber={maxNumber}
+            mySocketId={mySocketId}
+            onSubmitSecretNumber={handleSubmitSecretNumber}
+          />
+        );
+      }
+      if (gameState === 'PLAYING') {
+        return (
+          <EliminationGameplay
+            key="elim-gameplay"
+            players={players}
+            mySocketId={mySocketId}
+            isEliminated={isEliminated}
+            guessMode={guessMode}
+            maxNumber={maxNumber}
+            maxGuessesPerTarget={maxGuessesPerTarget}
+            currentTargetId={currentTargetId}
+            setCurrentTargetId={setCurrentTargetId}
+            eliminationLog={eliminationLog}
+            guessStats={guessStats}
+            onSubmitGuess={handleEliminationGuess}
+          />
+        );
+      }
+      if (gameState === 'FINISHED') {
+        return (
+          <EliminationLeaderboard
+            key="elim-leaderboard"
+            results={eliminationResults}
+            isHost={isHost}
+            handleReset={handleReset}
+          />
+        );
+      }
+    }
+
+    if (gameState === 'PLAYING') {
+      return (
+        <Gameplay
+          key="gameplay"
+          elapsed={elapsed}
+          guess={guess}
+          maxNumber={maxNumber}
+          setGuess={setGuess}
+          handleSubmitGuess={handleSubmitGuess}
+          feedback={feedback}
+        />
+      );
+    }
+
+    if (gameState === 'FINISHED') {
+      return (
+        <Leaderboard
+          key="leaderboard"
+          results={results}
+          isHost={isHost}
+          handleReset={handleReset}
+        />
+      );
+    }
+
+    return null;
+  }
 
   if (error) {
     return (
@@ -183,46 +407,7 @@ function App() {
       </motion.h1>
 
       <AnimatePresence mode="wait">
-        {roomId === '' ? (
-          <LandingPage
-            username={username}
-            setUsername={setUsername}
-            handleCreateRoom={handleCreateRoom}
-            joinRoomId={joinRoomId}
-            setJoinRoomId={setJoinRoomId}
-            handleJoinRoom={handleJoinRoom}
-          />
-        ) : gameState === 'LOBBY' || gameState === 'WAITING' ? (
-          <Lobby
-            roomId={roomId}
-            isHost={isHost}
-            maxNumber={maxNumber}
-            setMaxNumber={setMaxNumber}
-            playerLimit={playerLimit}
-            setPlayerLimit={setPlayerLimit}
-            handleConfigure={handleConfigure}
-            players={players}
-            playerLimitConfig={playerLimit}
-            handleToggleReady={handleToggleReady}
-            handleStart={handleStart}
-            socketId={socket.id}
-          />
-        ) : gameState === 'PLAYING' ? (
-          <Gameplay
-            elapsed={elapsed}
-            guess={guess}
-            maxNumber={maxNumber}
-            setGuess={setGuess}
-            handleSubmitGuess={handleSubmitGuess}
-            feedback={feedback}
-          />
-        ) : gameState === 'FINISHED' ? (
-          <Leaderboard
-            results={results}
-            isHost={isHost}
-            handleReset={handleReset}
-          />
-        ) : null}
+        {renderView()}
       </AnimatePresence>
     </div>
   );
