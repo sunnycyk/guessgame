@@ -13,6 +13,7 @@ import Leaderboard from './components/Leaderboard';
 import EliminationSetup from './components/EliminationSetup';
 import EliminationGameplay from './components/EliminationGameplay';
 import EliminationLeaderboard from './components/EliminationLeaderboard';
+import CookieDisclaimer from './components/CookieDisclaimer';
 
 // In production, Caddy reverse-proxies /socket.io/ on the same root domain
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
@@ -437,6 +438,8 @@ function App() {
       <AnimatePresence mode="wait">
         {renderView()}
       </AnimatePresence>
+
+      <CookieDisclaimer />
     </div>
   );
 }
