@@ -20,8 +20,6 @@ function Lobby({
     handleToggleReady,
     handleStart,
     socketId,
-    handleStart,
-    socketId,
     handleKickPlayer
 }) {
 
