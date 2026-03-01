@@ -1,17 +1,26 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import mascotLogo from './assets/logo.png';
 import './App.css';
 
-const socket = io('http://localhost:3001');
+// Components
+import LandingPage from './components/LandingPage';
+import Lobby from './components/Lobby';
+import Gameplay from './components/Gameplay';
+import Leaderboard from './components/Leaderboard';
+
+const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
+const socket = io(SOCKET_URL);
 
 function App() {
   const [username, setUsername] = useState('');
-  const [isJoined, setIsJoined] = useState(false);
+  const [roomId, setRoomId] = useState('');
+  const [joinRoomId, setJoinRoomId] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [gameState, setGameState] = useState('LOBBY');
-  const [guess, setGuess] = useState('');
+  const [guess, setGuess] = useState(500);
   const [feedback, setFeedback] = useState('');
   const [players, setPlayers] = useState([]);
   const [maxNumber, setMaxNumber] = useState(1000);
@@ -25,7 +34,6 @@ function App() {
 
   useEffect(() => {
     socket.on('gameState', (data) => {
-      console.log('Received GameState:', data);
       setGameState(data.gameState);
       if (data.maxNumber) setMaxNumber(data.maxNumber);
       if (data.playerLimit) setPlayerLimit(data.playerLimit);
@@ -33,6 +41,14 @@ function App() {
       if (data.gameStartTime) setStartTime(data.gameStartTime);
       if (data.isHost !== undefined) setIsHost(data.isHost);
       if (data.players) setPlayers(data.players);
+      if (data.roomId) setRoomId(data.roomId);
+    });
+
+    socket.on('roomCreated', (data) => {
+      setRoomId(data.roomId);
+      setGameState(data.gameState);
+      setIsHost(data.isHost);
+      setPlayers(data.players);
     });
 
     socket.on('playerList', (list) => {
@@ -44,7 +60,7 @@ function App() {
       setMaxNumber(data.maxNumber);
       setStartTime(data.gameStartTime);
       setFeedback('');
-      setGuess('');
+      setGuess(Math.floor(data.maxNumber / 2));
       setResults([]);
       setElapsed(0);
     });
@@ -69,11 +85,11 @@ function App() {
 
     socket.on('error', (msg) => {
       setError(msg);
-      setIsJoined(false);
     });
 
     return () => {
       socket.off('gameState');
+      socket.off('roomCreated');
       socket.off('playerList');
       socket.off('gameStarted');
       socket.off('guessResult');
@@ -95,12 +111,23 @@ function App() {
     return () => clearInterval(timerRef.current);
   }, [gameState, startTime]);
 
-  const handleJoin = (e) => {
+  const handleCreateRoom = (e) => {
     e.preventDefault();
     if (username.trim()) {
-      socket.emit('joinGame', username);
-      setIsJoined(true);
+      socket.emit('createRoom', { username });
       setError('');
+    }
+  };
+
+  const handleJoinRoom = (e) => {
+    e.preventDefault();
+    if (username.trim() && joinRoomId.trim()) {
+      socket.emit('joinRoom', { roomId: joinRoomId.trim().toUpperCase(), username });
+      setError('');
+    } else if (!username.trim()) {
+      setError('Please enter your name first');
+    } else if (!joinRoomId.trim()) {
+      setError('Please enter a Room ID to join');
     }
   };
 
@@ -131,28 +158,7 @@ function App() {
       <div className="container">
         <h1>Error</h1>
         <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Reload</button>
-      </div>
-    );
-  }
-
-  if (!isJoined) {
-    return (
-      <div className="container">
-        <div className="logo-container">
-          <img src={mascotLogo} alt="Mascot" className="mascot-logo" />
-        </div>
-        <h1>Guess the Number</h1>
-        <form onSubmit={handleJoin} className="form-card">
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <button type="submit">Join Game</button>
-        </form>
+        <button onClick={() => setError('')}>Back</button>
       </div>
     );
   }
@@ -176,168 +182,46 @@ function App() {
       </motion.h1>
 
       <AnimatePresence mode="wait">
-        {gameState === 'LOBBY' && isHost && (
-          <motion.div
-            key="host-config"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="host-config"
-          >
-            <h2>Create Game</h2>
-            <form onSubmit={handleConfigure} className="form-card">
-              <div className="input-group">
-                <label>Max Number</label>
-                <input
-                  type="number"
-                  value={maxNumber}
-                  onChange={(e) => setMaxNumber(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>Number of Players</label>
-                <input
-                  type="number"
-                  value={playerLimit}
-                  onChange={(e) => setPlayerLimit(e.target.value)}
-                />
-              </div>
-              <button type="submit">Set Configuration</button>
-            </form>
-          </motion.div>
-        )}
-
-        {gameState === 'LOBBY' && !isHost && (
-          <motion.div
-            key="waiting-host"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="waiting-room"
-          >
-            <h2>Waiting for Host...</h2>
-            <p>The host is currently configuring the game settings.</p>
-          </motion.div>
-        )}
-
-        {gameState === 'WAITING' && (
-          <motion.div
-            key="waiting-room"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="waiting-room"
-          >
-            <h2>Waiting Room</h2>
-            <div className="status-bar">
-              <span>Players: {players.length} / {playerLimit}</span>
-            </div>
-            <div className="player-list">
-              <AnimatePresence>
-                <ul>
-                  {players.map(p => (
-                    <motion.li
-                      key={p.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={p.isReady ? 'ready' : ''}
-                    >
-                      {p.username} {p.isHost && '👑'} {p.isReady && '✅'}
-                    </motion.li>
-                  ))}
-                </ul>
-              </AnimatePresence>
-            </div>
-
-            {!isHost && (
-              <button
-                onClick={handleToggleReady}
-                className={`ready-button ${players.find(p => p.id === socket.id)?.isReady ? 'active' : ''}`}
-                style={{ marginTop: '2rem', width: '100%' }}
-              >
-                {players.find(p => p.id === socket.id)?.isReady ? 'I am Ready! ✅' : 'Mark as Ready'}
-              </button>
-            )}
-
-            {isHost && (
-              <button
-                onClick={handleStart}
-                disabled={players.length < playerLimit || !players.every(p => p.isReady || p.isHost)}
-                style={{ marginTop: '2rem', width: '100%' }}
-              >
-                {players.length < playerLimit
-                  ? `Need ${playerLimit - players.length} more players`
-                  : !players.every(p => p.isReady || p.isHost)
-                    ? 'Waiting for players to be ready...'
-                    : 'Start Game 🚀'}
-              </button>
-            )}
-          </motion.div>
-        )}
-
-        {gameState === 'PLAYING' && (
-          <motion.div
-            key="gameplay"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="gameplay"
-          >
-            <div className="status-bar">
-              <span className="timer">⏱️ {elapsed}s</span>
-            </div>
-            <h2>Guess between 1 and {maxNumber}</h2>
-            <form onSubmit={handleSubmitGuess}>
-              <input
-                type="number"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                placeholder="Your guess..."
-                autoFocus
-              />
-              <button type="submit" style={{ marginTop: '1rem', width: '100%' }}>
-                Check Guess
-              </button>
-            </form>
-            <motion.p
-              className="feedback"
-              key={feedback}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-            >
-              {feedback}
-            </motion.p>
-          </motion.div>
-        )}
-
-        {gameState === 'FINISHED' && (
-          <motion.div
-            key="leaderboard"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="leaderboard"
-          >
-            <h2>Leaderboard</h2>
-            <ol>
-              {results.map((res, i) => (
-                <motion.li
-                  key={i}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <span>{res.username}</span>
-                  <span>{res.time.toFixed(2)}s</span>
-                </motion.li>
-              ))}
-            </ol>
-            {isHost && (
-              <button onClick={handleReset} style={{ width: '100%' }}>
-                Play Again 🔄
-              </button>
-            )}
-          </motion.div>
-        )}
+        {roomId === '' ? (
+          <LandingPage
+            username={username}
+            setUsername={setUsername}
+            handleCreateRoom={handleCreateRoom}
+            joinRoomId={joinRoomId}
+            setJoinRoomId={setJoinRoomId}
+            handleJoinRoom={handleJoinRoom}
+          />
+        ) : gameState === 'LOBBY' || gameState === 'WAITING' ? (
+          <Lobby
+            roomId={roomId}
+            isHost={isHost}
+            maxNumber={maxNumber}
+            setMaxNumber={setMaxNumber}
+            playerLimit={playerLimit}
+            setPlayerLimit={setPlayerLimit}
+            handleConfigure={handleConfigure}
+            players={players}
+            playerLimitConfig={playerLimit}
+            handleToggleReady={handleToggleReady}
+            handleStart={handleStart}
+            socketId={socket.id}
+          />
+        ) : gameState === 'PLAYING' ? (
+          <Gameplay
+            elapsed={elapsed}
+            guess={guess}
+            maxNumber={maxNumber}
+            setGuess={setGuess}
+            handleSubmitGuess={handleSubmitGuess}
+            feedback={feedback}
+          />
+        ) : gameState === 'FINISHED' ? (
+          <Leaderboard
+            results={results}
+            isHost={isHost}
+            handleReset={handleReset}
+          />
+        ) : null}
       </AnimatePresence>
     </div>
   );
