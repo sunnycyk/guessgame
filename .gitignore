@@ -16,3 +16,4 @@ backend/node_modules/
 frontend/node_modules/
 frontend/dist/
 build_error.txt
+compose.override.yaml
