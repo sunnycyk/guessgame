@@ -25,17 +25,34 @@ body {
 }
 
 .container {
-  width: 90%;
-  max-width: 650px;
-  padding: 3rem 2rem;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  padding: 2rem 1rem;
   background: var(--glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: 32px;
-  box-shadow: 0 20px 40px rgba(236, 72, 153, 0.15);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   text-align: center;
   transition: all 0.3s ease;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 640px) {
+  .container {
+    width: 90%;
+    max-width: 768px;
+    min-height: auto;
+    padding: 3rem 2rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 32px;
+    box-shadow: 0 20px 40px rgba(236, 72, 153, 0.15);
+    margin: 2rem 0;
+  }
 }
 
 .logo-container {
