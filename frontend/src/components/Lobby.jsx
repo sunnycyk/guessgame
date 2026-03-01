@@ -20,18 +20,50 @@ function Lobby({
     handleToggleReady,
     handleStart,
     socketId,
+    handleStart,
+    socketId,
     handleKickPlayer
 }) {
+
+    const FUN_COLORS = [
+        'rgba(254, 202, 202, 0.4)', 'rgba(254, 240, 138, 0.4)', 'rgba(217, 249, 157, 0.4)',
+        'rgba(187, 247, 208, 0.4)', 'rgba(167, 243, 208, 0.4)', 'rgba(153, 246, 228, 0.4)',
+        'rgba(186, 230, 253, 0.4)', 'rgba(191, 219, 254, 0.4)', 'rgba(199, 210, 254, 0.4)',
+        'rgba(233, 213, 255, 0.4)', 'rgba(251, 207, 232, 0.4)', 'rgba(254, 205, 211, 0.4)'
+    ];
+
+    const getPlayerColor = (id) => {
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+            hash = id.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return FUN_COLORS[Math.abs(hash) % FUN_COLORS.length];
+    };
+
+    const handleShare = async () => {
+        const url = `${window.location.origin}?room=${roomId}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Guess the Number',
+                    text: 'Join my Guess the Number game!',
+                    url: url
+                });
+                return;
+            } catch (err) {
+                console.error('Error sharing', err);
+            }
+        }
+        navigator.clipboard.writeText(url);
+        alert('Share link copied to clipboard!');
+    };
+
     return (
         <div className="lobby-container">
             <div className="room-id-badge" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
                 <div>Game ID: {roomId}</div>
                 <button
-                    onClick={() => {
-                        const url = `${window.location.origin}?room=${roomId}`;
-                        navigator.clipboard.writeText(url);
-                        alert('Share link copied to clipboard!');
-                    }}
+                    onClick={handleShare}
                     style={{
                         fontSize: '0.9rem',
                         padding: '0.3rem 0.8rem',
@@ -44,7 +76,7 @@ function Lobby({
                         marginTop: '0.5rem'
                     }}
                 >
-                    Copy Invite Link 🔗
+                    Share Invite Link 🔗
                 </button>
             </div>
 
@@ -181,13 +213,14 @@ function Lobby({
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className={p.isReady ? 'ready' : ''}
+                                style={{ backgroundColor: getPlayerColor(p.id) }}
                             >
                                 {p.username} {p.isHost && '👑'} {p.isReady && '✅'}
                                 {isHost && !p.isHost && (
                                     <button
                                         type="button"
                                         onClick={() => handleKickPlayer(p.id)}
-                                        style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }}
+                                        style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', background: '#ffffff', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }}
                                     >
                                         Boot 👢
                                     </button>
