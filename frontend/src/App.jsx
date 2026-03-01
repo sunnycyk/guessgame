@@ -27,6 +27,8 @@ function App() {
   const [guess, setGuess] = useState(500);
   const [feedback, setFeedback] = useState('');
   const [players, setPlayers] = useState([]);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [showEarlyLeaderboard, setShowEarlyLeaderboard] = useState(false);
   const [maxNumber, setMaxNumber] = useState(1000);
   const [playerLimit, setPlayerLimit] = useState(2);
   const [results, setResults] = useState([]);
@@ -88,6 +90,8 @@ function App() {
       setGuess(Math.floor(data.maxNumber / 2));
       setResults([]);
       setElapsed(0);
+      setIsCorrect(false);
+      setShowEarlyLeaderboard(false);
     });
 
     socket.on('eliminationGameStarted', (data) => {
@@ -164,6 +168,7 @@ function App() {
     socket.on('guessResult', (result) => {
       if (result === 'correct') {
         setFeedback('✨ Correct! You got it! ✨');
+        setIsCorrect(true);
         confetti({
           particleCount: 150,
           spread: 70,
@@ -200,7 +205,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (gameState === 'PLAYING' && startTime && gameMode === 'classic') {
+    if (gameState === 'PLAYING' && startTime && gameMode === 'classic' && !isCorrect) {
       timerRef.current = setInterval(() => {
         const now = Date.now();
         const diff = Math.max(0, (now - startTime) / 1000);
@@ -210,7 +215,7 @@ function App() {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [gameState, startTime, gameMode]);
+  }, [gameState, startTime, gameMode, isCorrect]);
 
   const handleCreateRoom = (e) => {
     e.preventDefault();
@@ -253,6 +258,8 @@ function App() {
     setIsEliminated(false);
     setCurrentTargetId('');
     setGuessStats({});
+    setIsCorrect(false);
+    setShowEarlyLeaderboard(false);
   };
 
   const handleToggleReady = () => {
@@ -350,7 +357,7 @@ function App() {
       }
     }
 
-    if (gameState === 'PLAYING') {
+    if (gameState === 'PLAYING' && !showEarlyLeaderboard) {
       return (
         <Gameplay
           key="gameplay"
@@ -360,16 +367,18 @@ function App() {
           setGuess={setGuess}
           handleSubmitGuess={handleSubmitGuess}
           feedback={feedback}
+          isCorrect={isCorrect}
+          setShowEarlyLeaderboard={setShowEarlyLeaderboard}
         />
       );
     }
 
-    if (gameState === 'FINISHED') {
+    if (gameState === 'FINISHED' || showEarlyLeaderboard) {
       return (
         <Leaderboard
           key="leaderboard"
           results={results}
-          isHost={isHost}
+          isHost={isHost && gameState === 'FINISHED'}
           handleReset={handleReset}
         />
       );

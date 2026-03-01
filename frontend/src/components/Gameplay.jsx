@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
-function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback }) {
+function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback, isCorrect, setShowEarlyLeaderboard }) {
     useEffect(() => {
         const handleKeyDown = (e) => {
+            if (isCorrect) return;
             if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
                 e.preventDefault();
                 setGuess(prev => Math.max(1, parseInt(prev || 0) - 1));
@@ -44,7 +45,7 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                     type="button"
                     className="fine-tune-btn"
                     onClick={() => setGuess(prev => Math.max(1, parseInt(prev) - 1))}
-                    disabled={guess <= 1}
+                    disabled={guess <= 1 || isCorrect}
                 >
                     -1
                 </button>
@@ -64,6 +65,7 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                         else if (val > maxNumber) setGuess(maxNumber);
                     }}
                     onKeyDown={(e) => {
+                        if (isCorrect) return;
                         if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
                             e.preventDefault();
                             setGuess(prev => Math.max(1, parseInt(prev || 0) - 1));
@@ -73,12 +75,13 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                         }
                     }}
                     className="colored-input guess-number-box"
+                    disabled={isCorrect}
                 />
                 <button
                     type="button"
                     className="fine-tune-btn"
                     onClick={() => setGuess(prev => Math.min(maxNumber, parseInt(prev) + 1))}
-                    disabled={guess >= maxNumber}
+                    disabled={guess >= maxNumber || isCorrect}
                 >
                     +1
                 </button>
@@ -93,6 +96,7 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                         value={guess}
                         onChange={(e) => setGuess(e.target.value)}
                         onKeyDown={(e) => {
+                            if (isCorrect) return;
                             if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
                                 e.preventDefault();
                                 setGuess(prev => Math.max(1, parseInt(prev || 0) - 1));
@@ -102,12 +106,25 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                             }
                         }}
                         className="cartoon-slider"
+                        disabled={isCorrect}
                     />
                 </div>
-                <button type="submit" style={{ marginTop: '2rem', width: '100%' }}>
-                    Check Guess
+                <button type="submit" disabled={isCorrect} style={{ marginTop: '2rem', width: '100%' }}>
+                    {isCorrect ? 'Correct!' : 'Check Guess'}
                 </button>
             </form>
+
+            {isCorrect && (
+                <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => setShowEarlyLeaderboard(true)}
+                    style={{ marginTop: '1rem', width: '100%', backgroundColor: '#10b981' }}
+                >
+                    Go to Leaderboard 🏆
+                </motion.button>
+            )}
+
             <motion.p
                 className="feedback"
                 key={feedback}
