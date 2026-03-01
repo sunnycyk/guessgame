@@ -19,7 +19,8 @@ function Lobby({
     playerLimitConfig,
     handleToggleReady,
     handleStart,
-    socketId
+    socketId,
+    handleKickPlayer
 }) {
     return (
         <div className="lobby-container">
@@ -67,7 +68,7 @@ function Lobby({
                             />
                         </div>
                         <div className="input-group">
-                            <label>Players Needed</label>
+                            <label>Max Players</label>
                             <input
                                 type="number"
                                 min="1"
@@ -182,6 +183,15 @@ function Lobby({
                                 className={p.isReady ? 'ready' : ''}
                             >
                                 {p.username} {p.isHost && '👑'} {p.isReady && '✅'}
+                                {isHost && !p.isHost && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleKickPlayer(p.id)}
+                                        style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }}
+                                    >
+                                        Boot 👢
+                                    </button>
+                                )}
                             </motion.li>
                         ))}
                     </ul>
@@ -201,13 +211,13 @@ function Lobby({
             {isHost && (
                 <button
                     onClick={handleStart}
-                    disabled={players.length < playerLimit || !players.every(p => p.isReady || p.isHost)}
+                    disabled={players.length < 2 || !players.every(p => p.isReady || p.isHost)}
                     style={{ marginTop: '2rem', width: '100%' }}
                 >
-                    {players.length < playerLimit
-                        ? `Need ${playerLimit - players.length} more players`
+                    {players.length < 2
+                        ? 'Need at least 2 players'
                         : !players.every(p => p.isReady || p.isHost)
-                            ? 'Waiting for players to be ready...'
+                            ? 'Waiting for everyone to be ready...'
                             : 'Start Game 🚀'}
                 </button>
             )}
