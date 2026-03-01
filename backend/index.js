@@ -160,8 +160,8 @@ io.on('connection', (socket) => {
 
     const { roomId, room } = roomInfo;
     const allReady = room.players.every(p => p.isReady || p.isHost);
-    if (!allReady && room.players.length >= room.playerLimit) {
-      socket.emit('error', 'All players must be ready before starting!');
+    if (!allReady || room.players.length < 2) {
+      socket.emit('error', 'Need at least 2 players and everyone must be ready!');
       return;
     }
 
@@ -424,6 +424,21 @@ io.on('connection', (socket) => {
       maxGuessesPerTarget: room.maxGuessesPerTarget,
       players: room.players
     });
+  });
+
+  // Kick player handle
+  socket.on('kickPlayer', ({ targetSocketId }) => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo || !roomInfo.room.players.find(p => p.id === socket.id && p.isHost)) return;
+
+    const { roomId, room } = roomInfo;
+    const targetIndex = room.players.findIndex(p => p.id === targetSocketId && !p.isHost);
+
+    if (targetIndex !== -1) {
+      room.players.splice(targetIndex, 1);
+      io.to(targetSocketId).emit('kicked', 'You have been kicked by the host.');
+      io.to(roomId).emit('playerList', room.players);
+    }
   });
 
   socket.on('disconnect', () => {

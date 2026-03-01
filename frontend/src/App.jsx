@@ -191,6 +191,16 @@ function App() {
       setError(msg);
     });
 
+    socket.on('kicked', (msg) => {
+      setGameState('LOBBY');
+      setRoomId('');
+      setJoinRoomId('');
+      setUsername('');
+      setIsHost(false);
+      setPlayers([]);
+      setError(msg);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('gameState');
@@ -204,6 +214,7 @@ function App() {
       socket.off('guessResult');
       socket.off('playerFinished');
       socket.off('error');
+      socket.off('kicked');
     };
   }, []);
 
@@ -277,6 +288,10 @@ function App() {
     socket.emit('submitEliminationGuess', { targetId, guess: guessValue });
   };
 
+  const handleKickPlayer = (targetSocketId) => {
+    socket.emit('kickPlayer', { targetSocketId });
+  };
+
   function renderView() {
     if (roomId === '') {
       return (
@@ -314,6 +329,7 @@ function App() {
           handleToggleReady={handleToggleReady}
           handleStart={handleStart}
           socketId={socket.id}
+          handleKickPlayer={handleKickPlayer}
         />
       );
     }
