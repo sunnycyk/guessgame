@@ -1,0 +1,33 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            # Check if directory exists, if not clone it
+            if [ ! -d "~/guessgame" ]; then
+              git clone https://github.com/${{ github.repository }}.git ~/guessgame
+            fi
+            
+            cd ~/guessgame
+            
+            # Fetch the latest changes and reset
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Restart the Docker containers
+            docker compose down
+            docker compose up --build -d
