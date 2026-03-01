@@ -29,6 +29,20 @@ function getRoom(socket) {
   return null;
 }
 
+function buildEliminationScoreboard(room) {
+  return room.players.map(p => ({
+    id: p.id,
+    username: p.username,
+    eliminations: p.eliminations || 0,
+    isAlive: p.isAlive,
+    isSurvivor: p.id === room.survivorId
+  })).sort((a, b) => {
+    if (a.isSurvivor) return -1;
+    if (b.isSurvivor) return 1;
+    return b.eliminations - a.eliminations;
+  });
+}
+
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -42,10 +56,18 @@ io.on('connection', (socket) => {
       winningNumber: null,
       results: [],
       gameStartTime: null,
-      hostId: socket.id
+      hostId: socket.id,
+      // Elimination mode fields
+      gameMode: 'classic',
+      guessMode: 'single',
+      maxGuessesPerTarget: 20,
+      eliminationTargets: {},
+      eliminationLog: [],
+      eliminationScores: {},
+      survivorId: null
     };
 
-    const player = { id: socket.id, username, finishTime: null, isHost: true, isReady: true };
+    const player = { id: socket.id, username, finishTime: null, isHost: true, isReady: true, isAlive: true, isSetupComplete: false, eliminations: 0 };
     room.players.push(player);
     rooms.set(roomId, room);
 
@@ -66,18 +88,21 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const player = { id: socket.id, username, finishTime: null, isHost: false, isReady: false };
+    const player = { id: socket.id, username, finishTime: null, isHost: false, isReady: false, isAlive: true, isSetupComplete: false, eliminations: 0 };
     room.players.push(player);
-    socket.join(roomId);
+    socket.join(roomId?.toUpperCase());
 
-    io.to(roomId).emit('playerList', room.players);
+    io.to(roomId?.toUpperCase()).emit('playerList', room.players);
     socket.emit('gameState', {
       gameState: room.gameState,
       maxNumber: room.maxNumber,
       playerLimit: room.playerLimit,
+      gameMode: room.gameMode,
+      guessMode: room.guessMode,
+      maxGuessesPerTarget: room.maxGuessesPerTarget,
       isHost: false,
       players: room.players,
-      roomId
+      roomId: roomId?.toUpperCase()
     });
     console.log(`Player ${username} joined room ${roomId}`);
   });
@@ -89,11 +114,25 @@ io.on('connection', (socket) => {
     const { roomId, room } = roomInfo;
     room.maxNumber = parseInt(config.maxNumber) || 1000;
     room.playerLimit = parseInt(config.playerLimit) || 2;
+
+    if (config.gameMode && ['classic', 'elimination'].includes(config.gameMode)) {
+      room.gameMode = config.gameMode;
+    }
+    if (config.guessMode && ['single', 'all'].includes(config.guessMode)) {
+      room.guessMode = config.guessMode;
+    }
+    if (config.maxGuessesPerTarget) {
+      room.maxGuessesPerTarget = Math.max(1, parseInt(config.maxGuessesPerTarget) || 20);
+    }
+
     room.gameState = 'WAITING';
     io.to(roomId).emit('gameState', {
       gameState: room.gameState,
       maxNumber: room.maxNumber,
       playerLimit: room.playerLimit,
+      gameMode: room.gameMode,
+      guessMode: room.guessMode,
+      maxGuessesPerTarget: room.maxGuessesPerTarget,
       players: room.players
     });
   });
@@ -121,24 +160,202 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.winningNumber = Math.floor(Math.random() * room.maxNumber) + 1;
-    room.gameState = 'PLAYING';
-    room.results = [];
-    room.players = room.players.map(p => ({ ...p, finishTime: null }));
-    room.gameStartTime = Date.now();
+    if (room.gameMode === 'classic') {
+      room.winningNumber = Math.floor(Math.random() * room.maxNumber) + 1;
+      room.gameState = 'PLAYING';
+      room.results = [];
+      room.players = room.players.map(p => ({ ...p, finishTime: null }));
+      room.gameStartTime = Date.now();
 
-    io.to(roomId).emit('gameStarted', { maxNumber: room.maxNumber, gameStartTime: room.gameStartTime });
-    io.to(roomId).emit('gameState', {
-      gameState: room.gameState,
-      maxNumber: room.maxNumber,
-      gameStartTime: room.gameStartTime
-    });
-    console.log(`Game started in room ${roomId}! Winning number: ${room.winningNumber}`);
+      io.to(roomId).emit('gameStarted', { maxNumber: room.maxNumber, gameStartTime: room.gameStartTime });
+      io.to(roomId).emit('gameState', {
+        gameState: room.gameState,
+        maxNumber: room.maxNumber,
+        gameStartTime: room.gameStartTime
+      });
+      console.log(`Game started in room ${roomId}! Winning number: ${room.winningNumber}`);
+
+    } else if (room.gameMode === 'elimination') {
+      room.gameState = 'SETUP';
+      room.eliminationTargets = {};
+      room.eliminationLog = [];
+      room.eliminationScores = {};
+      room.survivorId = null;
+
+      room.players = room.players.map(p => ({
+        ...p,
+        isAlive: true,
+        isSetupComplete: false,
+        eliminations: 0,
+        finishTime: null
+      }));
+
+      room.players.forEach(p => {
+        room.eliminationScores[p.id] = { username: p.username, eliminations: 0 };
+      });
+
+      io.to(roomId).emit('gameState', {
+        gameState: 'SETUP',
+        gameMode: 'elimination',
+        maxNumber: room.maxNumber,
+        players: room.players
+      });
+      console.log(`Elimination SETUP started in room ${roomId}`);
+    }
+  });
+
+  socket.on('submitSecretNumber', ({ secretNumber }) => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo || roomInfo.room.gameState !== 'SETUP') return;
+
+    const { roomId, room } = roomInfo;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || player.isSetupComplete) return;
+
+    const num = parseInt(secretNumber);
+    if (isNaN(num) || num < 1 || num > room.maxNumber) {
+      socket.emit('error', `Secret number must be between 1 and ${room.maxNumber}`);
+      return;
+    }
+
+    room.eliminationTargets[socket.id] = {
+      secretNumber: num,
+      guessCount: 0,
+      eliminatedBy: null
+    };
+
+    player.isSetupComplete = true;
+    io.to(roomId).emit('playerList', room.players);
+
+    const allSubmitted = room.players.every(p => p.isSetupComplete);
+    if (allSubmitted) {
+      room.gameState = 'PLAYING';
+      room.gameStartTime = Date.now();
+      io.to(roomId).emit('eliminationGameStarted', {
+        gameStartTime: room.gameStartTime,
+        maxNumber: room.maxNumber,
+        guessMode: room.guessMode,
+        maxGuessesPerTarget: room.maxGuessesPerTarget,
+        players: room.players
+      });
+      io.to(roomId).emit('gameState', {
+        gameState: 'PLAYING',
+        gameMode: 'elimination'
+      });
+      console.log(`Elimination PLAYING started in room ${roomId}`);
+    }
+  });
+
+  socket.on('submitEliminationGuess', ({ targetId, guess }) => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo) return;
+
+    const { roomId, room } = roomInfo;
+    if (room.gameState !== 'PLAYING' || room.gameMode !== 'elimination') return;
+
+    const guesser = room.players.find(p => p.id === socket.id);
+    if (!guesser || !guesser.isAlive) {
+      socket.emit('error', 'Eliminated players cannot guess');
+      return;
+    }
+
+    // targetId === null means "all alive opponents" (player-level override)
+    let targetIds;
+    if (targetId === null || targetId === undefined) {
+      targetIds = room.players
+        .filter(p => p.isAlive && p.id !== socket.id)
+        .map(p => p.id);
+    } else {
+      const targetPlayer = room.players.find(p => p.id === targetId && p.isAlive && p.id !== socket.id);
+      if (!targetPlayer) {
+        socket.emit('error', 'Invalid or eliminated target');
+        return;
+      }
+      targetIds = [targetId];
+    }
+
+    const numGuess = parseInt(guess);
+    let gameEnded = false;
+
+    for (const tid of targetIds) {
+      if (gameEnded) break;
+
+      const target = room.players.find(p => p.id === tid);
+      const targetData = room.eliminationTargets[tid];
+      if (!target || !targetData) continue;
+
+      targetData.guessCount++;
+
+      let result;
+      if (numGuess === targetData.secretNumber) {
+        result = 'correct';
+      } else if (numGuess < targetData.secretNumber) {
+        result = 'higher';
+      } else {
+        result = 'lower';
+      }
+
+      const logEntry = {
+        guesserUsername: guesser.username,
+        guesserSocketId: guesser.id,
+        targetUsername: target.username,
+        targetSocketId: tid,
+        guess: numGuess,
+        result
+      };
+      room.eliminationLog.push(logEntry);
+      io.to(roomId).emit('eliminationGuessResult', logEntry);
+
+      if (result === 'correct') {
+        target.isAlive = false;
+        targetData.eliminatedBy = socket.id;
+        guesser.eliminations++;
+        if (room.eliminationScores[socket.id]) {
+          room.eliminationScores[socket.id].eliminations++;
+        }
+
+        io.to(roomId).emit('playerEliminated', {
+          eliminatedId: tid,
+          eliminatedUsername: target.username,
+          eliminatorId: socket.id,
+          eliminatorUsername: guesser.username
+        });
+
+        const alivePlayers = room.players.filter(p => p.isAlive);
+        if (alivePlayers.length === 1) {
+          room.survivorId = alivePlayers[0].id;
+          room.gameState = 'FINISHED';
+          const finalScoreboard = buildEliminationScoreboard(room);
+          io.to(roomId).emit('gameState', {
+            gameState: 'FINISHED',
+            gameMode: 'elimination',
+            eliminationResults: finalScoreboard
+          });
+          gameEnded = true;
+        }
+
+      } else if (targetData.guessCount >= room.maxGuessesPerTarget) {
+        const newNumber = Math.floor(Math.random() * room.maxNumber) + 1;
+        targetData.secretNumber = newNumber;
+        targetData.guessCount = 0;
+        targetData.eliminatedBy = null;
+
+        io.to(roomId).emit('targetRerolled', {
+          targetUsername: target.username,
+          targetSocketId: tid,
+          reason: `Max guesses (${room.maxGuessesPerTarget}) reached — new number assigned`
+        });
+      }
+    }
+
+    if (!gameEnded) {
+      io.to(roomId).emit('playerList', room.players);
+    }
   });
 
   socket.on('submitGuess', (guess) => {
     const roomInfo = getRoom(socket);
-    if (!roomInfo || roomInfo.room.gameState !== 'PLAYING') return;
+    if (!roomInfo || roomInfo.room.gameState !== 'PLAYING' || roomInfo.room.gameMode !== 'classic') return;
 
     const { roomId, room } = roomInfo;
     const numGuess = parseInt(guess);
@@ -178,10 +395,29 @@ io.on('connection', (socket) => {
     room.gameState = 'LOBBY';
     room.results = [];
     room.gameStartTime = null;
+    room.winningNumber = null;
+    room.eliminationTargets = {};
+    room.eliminationLog = [];
+    room.eliminationScores = {};
+    room.survivorId = null;
+
+    room.players = room.players.map(p => ({
+      ...p,
+      isAlive: true,
+      isSetupComplete: false,
+      eliminations: 0,
+      finishTime: null,
+      isReady: p.isHost ? true : false
+    }));
+
     io.to(roomId).emit('gameState', {
-      gameState: room.gameState,
+      gameState: 'LOBBY',
       maxNumber: room.maxNumber,
-      playerLimit: room.playerLimit
+      playerLimit: room.playerLimit,
+      gameMode: room.gameMode,
+      guessMode: room.guessMode,
+      maxGuessesPerTarget: room.maxGuessesPerTarget,
+      players: room.players
     });
   });
 
@@ -191,6 +427,36 @@ io.on('connection', (socket) => {
 
     const { roomId, room } = roomInfo;
     const wasHost = (socket.id === room.hostId);
+    const disconnectedPlayer = room.players.find(p => p.id === socket.id);
+
+    // Handle mid-game disconnect in elimination mode
+    if (
+      room.gameMode === 'elimination' &&
+      room.gameState === 'PLAYING' &&
+      disconnectedPlayer?.isAlive
+    ) {
+      disconnectedPlayer.isAlive = false;
+      io.to(roomId).emit('playerEliminated', {
+        eliminatedId: socket.id,
+        eliminatedUsername: disconnectedPlayer.username,
+        eliminatorId: null,
+        eliminatorUsername: null,
+        reason: 'disconnect'
+      });
+
+      const alivePlayers = room.players.filter(p => p.isAlive && p.id !== socket.id);
+      if (alivePlayers.length === 1) {
+        room.survivorId = alivePlayers[0].id;
+        room.gameState = 'FINISHED';
+        const finalScoreboard = buildEliminationScoreboard(room);
+        io.to(roomId).emit('gameState', {
+          gameState: 'FINISHED',
+          gameMode: 'elimination',
+          eliminationResults: finalScoreboard
+        });
+      }
+    }
+
     room.players = room.players.filter(p => p.id !== socket.id);
 
     if (wasHost && room.players.length > 0) {
