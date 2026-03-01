@@ -1,14 +1,29 @@
 services:
   backend:
     build: ./backend
-    ports:
-      - "3001:3001"
     environment:
       - PORT=3001
 
   frontend:
     build: ./frontend
-    ports:
-      - "5173:80"
     depends_on:
       - backend
+
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  caddy_data:
+  caddy_config:

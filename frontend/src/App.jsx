@@ -11,8 +11,8 @@ import Lobby from './components/Lobby';
 import Gameplay from './components/Gameplay';
 import Leaderboard from './components/Leaderboard';
 
-// In production via Docker, the backend is exposed on port 3001 of the same host IP
-const SOCKET_URL = `http://${window.location.hostname}:3001`;
+// In production, Caddy reverse-proxies /socket.io/ on the same root domain
+const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
 const socket = io(SOCKET_URL);
 
 function App() {

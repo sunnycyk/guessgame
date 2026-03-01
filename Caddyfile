@@ -1,0 +1,7 @@
+guessgame.toysmine.com {
+	# Route Socket.IO traffic to the Node.js backend
+	reverse_proxy /socket.io/* backend:3001
+	
+	# Route all other traffic to the Nginx frontend
+	reverse_proxy /* frontend:80
+}
