@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import AdBanner from './AdBanner';
 
 function Leaderboard({ results, isHost, handleReset }) {
     return (
@@ -28,6 +29,7 @@ function Leaderboard({ results, isHost, handleReset }) {
                     Play Again 🔄
                 </button>
             )}
+            <AdBanner style={{ marginTop: '2rem' }} />
         </motion.div>
     );
 }

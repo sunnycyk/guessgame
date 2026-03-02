@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import AdBanner from './AdBanner';
 
 function EliminationLeaderboard({ results, isHost, handleReset }) {
     useEffect(() => {
@@ -64,7 +65,8 @@ function EliminationLeaderboard({ results, isHost, handleReset }) {
                     Play Again 🔄
                 </motion.button>
             )}
-        </motion.div>
+            <AdBanner style={{ marginTop: '2rem' }} />
+        </motion.div >
     );
 }
 
