@@ -14,6 +14,7 @@ import EliminationSetup from './components/EliminationSetup';
 import EliminationGameplay from './components/EliminationGameplay';
 import EliminationLeaderboard from './components/EliminationLeaderboard';
 import CookieDisclaimer from './components/CookieDisclaimer';
+import ReactGA from 'react-ga4';
 
 // In production, Caddy reverse-proxies /socket.io/ on the same root domain
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
@@ -80,6 +81,10 @@ function App() {
       setGameState(data.gameState);
       setIsHost(data.isHost);
       setPlayers(data.players);
+      ReactGA.event({
+        category: "Game",
+        action: "Create Room",
+      });
     });
 
     socket.on('playerList', (list) => {
@@ -190,6 +195,11 @@ function App() {
 
     socket.on('error', (msg) => {
       setError(msg);
+      ReactGA.event({
+        category: "Error",
+        action: "Socket Error",
+        label: msg
+      });
     });
 
     socket.on('kicked', (msg) => {
