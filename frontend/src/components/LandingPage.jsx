@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdBanner from './AdBanner';
 
 function LandingPage({ username, setUsername, handleCreateRoom, joinRoomId, setJoinRoomId, handleJoinRoom }) {
     const [mode, setMode] = useState(joinRoomId ? 'join' : 'initial'); // 'initial' | 'host' | 'join'
@@ -75,6 +76,7 @@ function LandingPage({ username, setUsername, handleCreateRoom, joinRoomId, setJ
                     )}
                 </AnimatePresence>
             </div>
+            <AdBanner style={{ marginTop: '2rem' }} />
         </motion.div>
     );
 }

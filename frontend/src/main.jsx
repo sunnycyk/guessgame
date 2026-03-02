@@ -10,6 +10,16 @@ if (measurementId) {
   ReactGA.send({ hitType: "pageview", page: window.location.pathname });
 }
 
+// Inject AdSense script if configured
+const adClientId = import.meta.env.VITE_ADSENSE_CLIENT_ID;
+if (adClientId) {
+  const script = document.createElement("script");
+  script.async = true;
+  script.crossOrigin = "anonymous";
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClientId}`;
+  document.head.appendChild(script);
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

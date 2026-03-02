@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdBanner from './AdBanner';
 
 function Lobby({
     roomId,
@@ -252,6 +253,7 @@ function Lobby({
                             : 'Start Game 🚀'}
                 </button>
             )}
+            <AdBanner style={{ marginTop: '2rem' }} />
         </div>
     );
 }
