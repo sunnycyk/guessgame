@@ -101,6 +101,10 @@ function App() {
       setElapsed(0);
       setIsCorrect(false);
       setShowEarlyLeaderboard(false);
+      ReactGA.event({
+        category: "Game",
+        action: "Classic Game Started",
+      });
     });
 
     socket.on('eliminationGameStarted', (data) => {
@@ -120,6 +124,10 @@ function App() {
         initStats[p.id] = { guessesMade: 0, guessesReceived: 0, currentGuessCount: 0, recentGuesses: [] };
       });
       setGuessStats(initStats);
+      ReactGA.event({
+        category: "Game",
+        action: "Elimination Game Started",
+      });
     });
 
     socket.on('eliminationGuessResult', (logEntry) => {
