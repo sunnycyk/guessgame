@@ -258,7 +258,9 @@ function App() {
   };
 
   const handleStart = () => {
-    socket.emit('startGame');
+    // Always sync current lobby settings to backend before starting,
+    // so the host doesn't need to click "Set Configuration" separately.
+    socket.emit('startGame', { maxNumber, playerLimit, gameMode, guessMode, maxGuessesPerTarget });
   };
 
   const handleSubmitGuess = (e) => {

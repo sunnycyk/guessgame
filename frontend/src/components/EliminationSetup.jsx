@@ -49,11 +49,11 @@ function EliminationSetup({ players, maxNumber, mySocketId, onSubmitSecretNumber
                         <div className="input-group">
                             <label>Your Secret Number</label>
                             <input
-                                type="number"
-                                min="1"
-                                max={maxNumber}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={secretInput}
-                                onChange={(e) => setSecretInput(e.target.value)}
+                                onChange={(e) => setSecretInput(e.target.value.replace(/[^0-9]/g, ''))}
                                 className="colored-input"
                                 autoFocus
                                 placeholder={`1 – ${maxNumber}`}

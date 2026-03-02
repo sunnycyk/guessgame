@@ -154,11 +154,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('startGame', () => {
+  socket.on('startGame', (config) => {
     const roomInfo = getRoom(socket);
     if (!roomInfo || !roomInfo.room.players.find(p => p.id === socket.id && p.isHost)) return;
 
     const { roomId, room } = roomInfo;
+
+    // Apply config from client so host doesn't need to click "Set Configuration" separately
+    if (config && typeof config === 'object') {
+      if (config.gameMode && ['classic', 'elimination'].includes(config.gameMode)) room.gameMode = config.gameMode;
+      if (config.guessMode && ['single', 'all'].includes(config.guessMode)) room.guessMode = config.guessMode;
+      if (config.maxNumber) room.maxNumber = Math.max(10, parseInt(config.maxNumber) || 1000);
+      if (config.playerLimit) room.playerLimit = Math.max(1, parseInt(config.playerLimit) || 2);
+      if (config.maxGuessesPerTarget) room.maxGuessesPerTarget = Math.max(1, parseInt(config.maxGuessesPerTarget) || 20);
+    }
+
     const allReady = room.players.every(p => p.isReady || p.isHost);
     if (!allReady || room.players.length < 2) {
       socket.emit('error', 'Need at least 2 players and everyone must be ready!');
