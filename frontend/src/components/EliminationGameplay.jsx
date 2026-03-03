@@ -287,7 +287,7 @@ function EliminationGameplay({
           </form>
 
           <div className="voice-controls">
-            {canRecognize && (
+            {canRecognize() && (
               <button
                 type="button"
                 className={`mic-btn ${listening ? 'listening' : ''}`}
@@ -297,7 +297,7 @@ function EliminationGameplay({
                 🎤
               </button>
             )}
-            {canSpeak && (
+            {canSpeak() && (
               <>
                 <button
                   type="button"
@@ -318,13 +318,13 @@ function EliminationGameplay({
               </>
             )}
           </div>
-          {canRecognize && (
+          {canRecognize() && (
             <p className="voice-hint">🎤 Say <em>"Cortex"</em> to target, <em>"350"</em> to guess, or <em>"Cortex 350"</em> for both</p>
           )}
-          {!canRecognize && !canSpeak && (
+          {!canRecognize() && !canSpeak() && (
             <p className="voice-hint voice-blocked">⚠️ Voice not available — check browser permissions or lower privacy shields</p>
           )}
-          {!canRecognize && canSpeak && (
+          {!canRecognize() && canSpeak() && (
             <p className="voice-hint voice-blocked">🎤 Mic blocked — Brave users: lower Shields for this site</p>
           )}
           {micError && (

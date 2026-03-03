@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { canRecognize, canSpeak, startVoiceInput, wordsToNumber, speak, logVoiceStatus } from '../utils/voice';
+import { canRecognize(), canSpeak(), startVoiceInput, wordsToNumber, speak, logVoiceStatus } from '../utils/voice';
 
 function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback, isCorrect, setShowEarlyLeaderboard, voiceEnabled, setVoiceEnabled }) {
     const [listening, setListening] = useState(false);
@@ -146,7 +146,7 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                 </button>
             </div>
             <div className="voice-controls">
-                {canRecognize && (
+                {canRecognize() && (
                     <button
                         type="button"
                         className={`mic-btn ${listening ? 'listening' : ''}`}
@@ -157,7 +157,7 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                         🎤
                     </button>
                 )}
-                {canSpeak && (
+                {canSpeak() && (
                     <>
                         <button
                             type="button"
@@ -178,10 +178,10 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                     </>
                 )}
             </div>
-            {!canRecognize && !canSpeak && (
+            {!canRecognize() && !canSpeak() && (
                 <p className="voice-hint voice-blocked">⚠️ Voice not available — check browser permissions or lower privacy shields</p>
             )}
-            {!canRecognize && canSpeak && (
+            {!canRecognize() && canSpeak() && (
                 <p className="voice-hint voice-blocked">🎤 Mic blocked — Brave users: lower Shields for this site</p>
             )}
             {micError && (
