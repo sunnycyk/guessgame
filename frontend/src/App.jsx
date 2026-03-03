@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import mascotLogo from './assets/logo.png';
 import './App.css';
+import { speak } from './utils/voice';
 
 // Components
 import LandingPage from './components/LandingPage';
@@ -52,6 +53,10 @@ function App() {
   // { [playerId]: { guessesMade, guessesReceived, currentGuessCount } }
   const [guessStats, setGuessStats] = useState({});
 
+  const [voiceEnabled, setVoiceEnabledState] = useState(false);
+  const voiceEnabledRef = useRef(false);
+  const setVoiceEnabled = (v) => { setVoiceEnabledState(v); voiceEnabledRef.current = v; };
+
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -99,6 +104,7 @@ function App() {
     });
 
     socket.on('eliminationGameStarted', (data) => {
+      if (voiceEnabledRef.current) speak('Game started!');
       setGameState('PLAYING');
       setMaxNumber(data.maxNumber);
       setStartTime(data.gameStartTime);
@@ -118,6 +124,10 @@ function App() {
     });
 
     socket.on('eliminationGuessResult', (logEntry) => {
+      if (voiceEnabledRef.current && logEntry.guesserSocketId === socket.id) {
+        if (logEntry.result === 'correct') speak(`${logEntry.targetUsername} eliminated!`);
+        else speak(logEntry.result === 'higher' ? 'Higher' : 'Lower');
+      }
       setEliminationLog(prev => [logEntry, ...prev]);
       setGuessStats(prev => {
         const next = { ...prev };
@@ -364,6 +374,8 @@ function App() {
             eliminationLog={eliminationLog}
             guessStats={guessStats}
             onSubmitGuess={handleEliminationGuess}
+            voiceEnabled={voiceEnabled}
+            setVoiceEnabled={setVoiceEnabled}
           />
         );
       }
@@ -391,6 +403,8 @@ function App() {
           feedback={feedback}
           isCorrect={isCorrect}
           setShowEarlyLeaderboard={setShowEarlyLeaderboard}
+          voiceEnabled={voiceEnabled}
+          setVoiceEnabled={setVoiceEnabled}
         />
       );
     }

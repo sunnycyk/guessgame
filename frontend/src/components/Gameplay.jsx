@@ -1,7 +1,66 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { canRecognize, canSpeak, startVoiceInput, wordsToNumber, speak, logVoiceStatus } from '../utils/voice';
 
-function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback, isCorrect, setShowEarlyLeaderboard }) {
+function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback, isCorrect, setShowEarlyLeaderboard, voiceEnabled, setVoiceEnabled }) {
+    const [listening, setListening] = useState(false);
+    const [micError, setMicError] = useState('');
+    const recognitionRef = useRef(null);
+    const sessionRef = useRef(0);
+
+    // Cancel recognition when tab is hidden
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                recognitionRef.current?.abort();
+                recognitionRef.current = null;
+                setListening(false);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }, []);
+
+    const handleMicClick = () => {
+        if (listening) {
+            recognitionRef.current?.abort();
+            recognitionRef.current = null;
+            setListening(false);
+            return;
+        }
+        sessionRef.current += 1;
+        const session = sessionRef.current;
+        setListening(true);
+        recognitionRef.current = startVoiceInput({
+            onResult: (transcripts) => {
+                if (sessionRef.current !== session) return;
+                recognitionRef.current = null;
+                setListening(false);
+                for (const t of transcripts) {
+                    const num = wordsToNumber(t);
+                    if (num !== null && num >= 1 && num <= maxNumber) {
+                        setGuess(num);
+                        handleSubmitGuess({ preventDefault: () => {} }, num);
+                        break;
+                    }
+                }
+            },
+            onError: (err) => {
+                if (sessionRef.current !== session) return;
+                recognitionRef.current = null;
+                setListening(false);
+                if (err === 'network') setMicError('Mic blocked (network) — lower Brave Shields or enable Google services in Brave settings');
+                else if (err === 'not-allowed') setMicError('Microphone access denied — allow mic in browser/system settings');
+                else if (err && err !== 'aborted') setMicError(`Mic error: ${err}`);
+            },
+            onEnd: () => {
+                if (sessionRef.current !== session) return;
+                recognitionRef.current = null;
+                setListening(false);
+            },
+        });
+    };
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (isCorrect) return;
@@ -86,6 +145,49 @@ function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feed
                     +1
                 </button>
             </div>
+            <div className="voice-controls">
+                {canRecognize && (
+                    <button
+                        type="button"
+                        className={`mic-btn ${listening ? 'listening' : ''}`}
+                        onClick={handleMicClick}
+                        disabled={isCorrect}
+                        title={listening ? 'Listening… (tap to cancel)' : 'Speak your guess'}
+                    >
+                        🎤
+                    </button>
+                )}
+                {canSpeak && (
+                    <>
+                        <button
+                            type="button"
+                            className={`voice-toggle-btn ${voiceEnabled ? 'voice-on' : ''}`}
+                            onClick={() => { logVoiceStatus(); setVoiceEnabled(!voiceEnabled); }}
+                            title={voiceEnabled ? 'Mute voice announcements' : 'Enable voice announcements'}
+                        >
+                            {voiceEnabled ? '🔊' : '🔇'}
+                        </button>
+                        <button
+                            type="button"
+                            className="voice-test-btn"
+                            onClick={() => speak('Testing voice')}
+                            title="Test speaker directly"
+                        >
+                            Test
+                        </button>
+                    </>
+                )}
+            </div>
+            {!canRecognize && !canSpeak && (
+                <p className="voice-hint voice-blocked">⚠️ Voice not available — check browser permissions or lower privacy shields</p>
+            )}
+            {!canRecognize && canSpeak && (
+                <p className="voice-hint voice-blocked">🎤 Mic blocked — Brave users: lower Shields for this site</p>
+            )}
+            {micError && (
+                <p className="voice-hint voice-blocked" onClick={() => setMicError('')} style={{ cursor: 'pointer' }}>⚠️ {micError}</p>
+            )}
+
             <p className="range-hint">Between 1 and {maxNumber}</p>
             <form onSubmit={handleSubmitGuess}>
                 <div className="slider-container">
