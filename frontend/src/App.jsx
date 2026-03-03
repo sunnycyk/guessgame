@@ -295,6 +295,18 @@ function App() {
     socket.emit('kickPlayer', { targetSocketId });
   };
 
+  const handleAddBot = (tier) => {
+    socket.emit('addBot', { tier });
+  };
+
+  const handleRemoveBot = (botId) => {
+    socket.emit('removeBot', { botId });
+  };
+
+  const handleFillBots = () => {
+    socket.emit('fillWithBots', { playerLimit });
+  };
+
   function renderView() {
     if (roomId === '') {
       return (
@@ -333,6 +345,9 @@ function App() {
           handleStart={handleStart}
           socketId={socket.id}
           handleKickPlayer={handleKickPlayer}
+          handleAddBot={handleAddBot}
+          handleRemoveBot={handleRemoveBot}
+          handleFillBots={handleFillBots}
         />
       );
     }
