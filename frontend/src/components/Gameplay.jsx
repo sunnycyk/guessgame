@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { canRecognize(), canSpeak(), startVoiceInput, wordsToNumber, speak, logVoiceStatus } from '../utils/voice';
+import { canRecognize, canSpeak, startVoiceInput, wordsToNumber, speak, logVoiceStatus } from '../utils/voice';
 
 function Gameplay({ elapsed, guess, maxNumber, setGuess, handleSubmitGuess, feedback, isCorrect, setShowEarlyLeaderboard, voiceEnabled, setVoiceEnabled }) {
     const [listening, setListening] = useState(false);
