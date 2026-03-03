@@ -53,6 +53,7 @@ function App() {
   // { [playerId]: { guessesMade, guessesReceived, currentGuessCount } }
   const [guessStats, setGuessStats] = useState({});
 
+  const [voiceControlsEnabled, setVoiceControlsEnabled] = useState(false);
   const [voiceEnabled, setVoiceEnabledState] = useState(false);
   const voiceEnabledRef = useRef(false);
   const setVoiceEnabled = (v) => { setVoiceEnabledState(v); voiceEnabledRef.current = v; };
@@ -374,6 +375,8 @@ function App() {
             eliminationLog={eliminationLog}
             guessStats={guessStats}
             onSubmitGuess={handleEliminationGuess}
+            voiceControlsEnabled={voiceControlsEnabled}
+            setVoiceControlsEnabled={setVoiceControlsEnabled}
             voiceEnabled={voiceEnabled}
             setVoiceEnabled={setVoiceEnabled}
           />
@@ -403,6 +406,8 @@ function App() {
           feedback={feedback}
           isCorrect={isCorrect}
           setShowEarlyLeaderboard={setShowEarlyLeaderboard}
+          voiceControlsEnabled={voiceControlsEnabled}
+          setVoiceControlsEnabled={setVoiceControlsEnabled}
           voiceEnabled={voiceEnabled}
           setVoiceEnabled={setVoiceEnabled}
         />

@@ -112,6 +112,8 @@ function EliminationGameplay({
   eliminationLog,
   guessStats,
   onSubmitGuess,
+  voiceControlsEnabled,
+  setVoiceControlsEnabled,
   voiceEnabled,
   setVoiceEnabled,
 }) {
@@ -122,6 +124,15 @@ function EliminationGameplay({
   const [micError, setMicError] = useState('');
   const recognitionRef = useRef(null);
   const sessionRef = useRef(0);
+
+  // Abort recognition when voice controls are disabled
+  useEffect(() => {
+    if (!voiceControlsEnabled) {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+      setListening(false);
+    }
+  }, [voiceControlsEnabled]);
 
   // Cancel recognition when tab is hidden
   useEffect(() => {
@@ -286,50 +297,64 @@ function EliminationGameplay({
             </button>
           </form>
 
-          <div className="voice-controls">
-            {canRecognize() && (
-              <button
-                type="button"
-                className={`mic-btn ${listening ? 'listening' : ''}`}
-                onClick={handleMicClick}
-                title={listening ? 'Listening… (tap to cancel)' : 'Say a name to target, or a number to set your guess'}
-              >
-                🎤
-              </button>
-            )}
-            {canSpeak() && (
+          <div className="voice-section">
+            <button
+              type="button"
+              className={`voice-beta-toggle ${voiceControlsEnabled ? 'active' : ''}`}
+              onClick={() => setVoiceControlsEnabled(v => !v)}
+              title={voiceControlsEnabled ? 'Disable voice controls' : 'Enable voice controls (Beta)'}
+            >
+              🎙 Voice <span className="beta-badge">BETA</span>
+            </button>
+            {voiceControlsEnabled && (
               <>
-                <button
-                  type="button"
-                  className={`voice-toggle-btn ${voiceEnabled ? 'voice-on' : ''}`}
-                  onClick={() => { logVoiceStatus(); setVoiceEnabled(!voiceEnabled); }}
-                  title={voiceEnabled ? 'Mute voice announcements' : 'Enable voice announcements'}
-                >
-                  {voiceEnabled ? '🔊' : '🔇'}
-                </button>
-                <button
-                  type="button"
-                  className="voice-test-btn"
-                  onClick={() => speak('Testing voice')}
-                  title="Test speaker directly"
-                >
-                  Test
-                </button>
+                <div className="voice-controls">
+                  {canRecognize() && (
+                    <button
+                      type="button"
+                      className={`mic-btn ${listening ? 'listening' : ''}`}
+                      onClick={handleMicClick}
+                      title={listening ? 'Listening… (tap to cancel)' : 'Say a name to target, or a number to set your guess'}
+                    >
+                      🎤
+                    </button>
+                  )}
+                  {canSpeak() && (
+                    <>
+                      <button
+                        type="button"
+                        className={`voice-toggle-btn ${voiceEnabled ? 'voice-on' : ''}`}
+                        onClick={() => { logVoiceStatus(); setVoiceEnabled(!voiceEnabled); }}
+                        title={voiceEnabled ? 'Mute voice announcements' : 'Enable voice announcements'}
+                      >
+                        {voiceEnabled ? '🔊' : '🔇'}
+                      </button>
+                      <button
+                        type="button"
+                        className="voice-test-btn"
+                        onClick={() => speak('Testing voice')}
+                        title="Test speaker directly"
+                      >
+                        Test
+                      </button>
+                    </>
+                  )}
+                </div>
+                {canRecognize() && (
+                  <p className="voice-hint">🎤 Say <em>"Cortex"</em> to target, <em>"350"</em> to guess, or <em>"Cortex 350"</em> for both</p>
+                )}
+                {!canRecognize() && !canSpeak() && (
+                  <p className="voice-hint voice-blocked">⚠️ Voice not available — check browser permissions or lower privacy shields</p>
+                )}
+                {!canRecognize() && canSpeak() && (
+                  <p className="voice-hint voice-blocked">🎤 Mic blocked — Brave users: lower Shields for this site</p>
+                )}
+                {micError && (
+                  <p className="voice-hint voice-blocked" onClick={() => setMicError('')} style={{ cursor: 'pointer' }}>⚠️ {micError}</p>
+                )}
               </>
             )}
           </div>
-          {canRecognize() && (
-            <p className="voice-hint">🎤 Say <em>"Cortex"</em> to target, <em>"350"</em> to guess, or <em>"Cortex 350"</em> for both</p>
-          )}
-          {!canRecognize() && !canSpeak() && (
-            <p className="voice-hint voice-blocked">⚠️ Voice not available — check browser permissions or lower privacy shields</p>
-          )}
-          {!canRecognize() && canSpeak() && (
-            <p className="voice-hint voice-blocked">🎤 Mic blocked — Brave users: lower Shields for this site</p>
-          )}
-          {micError && (
-            <p className="voice-hint voice-blocked" onClick={() => setMicError('')} style={{ cursor: 'pointer' }}>⚠️ {micError}</p>
-          )}
         </div>
       )}
 
