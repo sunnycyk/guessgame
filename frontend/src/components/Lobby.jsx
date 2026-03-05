@@ -1,6 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const BOT_TIERS = [
+    { tier: 'noob',    label: 'Noob',    emoji: '🐣', desc: 'Random guesses, very slow' },
+    { tier: 'alright', label: 'Alright', emoji: '🙂', desc: 'Tries binary search, makes mistakes' },
+    { tier: 'legend',  label: 'Legend',  emoji: '🔥', desc: 'Near-perfect, fast' },
+    { tier: 'ai',      label: 'AI',      emoji: '🤖', desc: 'Perfect binary search, instant' },
+];
+
 function Lobby({
     roomId,
     isHost,
@@ -20,7 +27,10 @@ function Lobby({
     handleToggleReady,
     handleStart,
     socketId,
-    handleKickPlayer
+    handleKickPlayer,
+    handleAddBot,
+    handleRemoveBot,
+    handleFillBots,
 }) {
 
     const FUN_COLORS = [
@@ -214,13 +224,18 @@ function Lobby({
                                 style={{ backgroundColor: getPlayerColor(p.id) }}
                             >
                                 {p.username} {p.isHost && '👑'} {p.isReady && '✅'}
+                                {p.isBot && (
+                                    <span className="bot-tier-badge" data-tier={p.botTier}>
+                                        {BOT_TIERS.find(t => t.tier === p.botTier)?.emoji} {p.botTier}
+                                    </span>
+                                )}
                                 {isHost && !p.isHost && (
                                     <button
                                         type="button"
-                                        onClick={() => handleKickPlayer(p.id)}
+                                        onClick={() => p.isBot ? handleRemoveBot(p.id) : handleKickPlayer(p.id)}
                                         style={{ marginLeft: '10px', fontSize: '0.8rem', padding: '2px 6px', background: '#ffffff', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }}
                                     >
-                                        Boot 👢
+                                        {p.isBot ? 'Remove 🗑️' : 'Boot 👢'}
                                     </button>
                                 )}
                             </motion.li>
@@ -228,6 +243,33 @@ function Lobby({
                     </ul>
                 </AnimatePresence>
             </div>
+
+            {isHost && (
+                <div className="add-bots-section">
+                    <p className="add-bots-label">Add Bots</p>
+                    <div className="add-bots-grid">
+                        {BOT_TIERS.map(({ tier, label, emoji, desc }) => (
+                            <button
+                                key={tier}
+                                type="button"
+                                className={`add-bot-btn add-bot-btn-${tier}`}
+                                onClick={() => handleAddBot(tier)}
+                                title={desc}
+                            >
+                                {emoji} {label}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            className="add-bot-btn add-bot-btn-random"
+                            onClick={handleFillBots}
+                            title="Fill empty slots with bots of random tiers"
+                        >
+                            🎲 Random Fill
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {!isHost && (
                 <button
