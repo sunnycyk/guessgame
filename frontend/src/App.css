@@ -1101,6 +1101,57 @@ button:active {
 .add-bot-btn-ai      { background: linear-gradient(to right, #a855f7, #7c3aed); box-shadow: 0 4px 10px rgba(124,58,237,0.3); }
 .add-bot-btn-random  { background: linear-gradient(to right, #ec4899, #d946ef); box-shadow: 0 4px 10px rgba(236,72,153,0.3); }
 
+/* ========================= */
+/* === VOICE BETA TOGGLE === */
+/* ========================= */
+
+.voice-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.voice-beta-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(236, 72, 153, 0.35);
+  background: rgba(255, 255, 255, 0.25);
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.voice-beta-toggle:hover {
+  border-color: #f472b6;
+  color: #db2777;
+  background: rgba(252, 231, 243, 0.5);
+}
+
+.voice-beta-toggle.active {
+  border-color: #ec4899;
+  background: rgba(252, 231, 243, 0.6);
+  color: #be185d;
+}
+
+.beta-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: linear-gradient(to right, #ec4899, #d946ef);
+  color: white;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
 /* ===================== */
 /* === VOICE CONTROLS === */
 /* ===================== */
