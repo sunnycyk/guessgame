@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import mascotLogo from './assets/logo.png';
 import './App.css';
+import { speak } from './utils/voice';
 
 // Components
 import LandingPage from './components/LandingPage';
@@ -52,6 +53,11 @@ function App() {
   const [currentTargetId, setCurrentTargetId] = useState('');
   // { [playerId]: { guessesMade, guessesReceived, currentGuessCount } }
   const [guessStats, setGuessStats] = useState({});
+
+  const [voiceControlsEnabled, setVoiceControlsEnabled] = useState(false);
+  const [voiceEnabled, setVoiceEnabledState] = useState(false);
+  const voiceEnabledRef = useRef(false);
+  const setVoiceEnabled = (v) => { setVoiceEnabledState(v); voiceEnabledRef.current = v; };
 
   const timerRef = useRef(null);
 
@@ -108,6 +114,7 @@ function App() {
     });
 
     socket.on('eliminationGameStarted', (data) => {
+      if (voiceEnabledRef.current) speak('Game started!');
       setGameState('PLAYING');
       setMaxNumber(data.maxNumber);
       setStartTime(data.gameStartTime);
@@ -131,6 +138,10 @@ function App() {
     });
 
     socket.on('eliminationGuessResult', (logEntry) => {
+      if (voiceEnabledRef.current && logEntry.guesserSocketId === socket.id) {
+        if (logEntry.result === 'correct') speak(`${logEntry.targetUsername} eliminated!`);
+        else speak(logEntry.result === 'higher' ? 'Higher' : 'Lower');
+      }
       setEliminationLog(prev => [logEntry, ...prev]);
       setGuessStats(prev => {
         const next = { ...prev };
@@ -276,7 +287,9 @@ function App() {
   };
 
   const handleStart = () => {
-    socket.emit('startGame');
+    // Always sync current lobby settings to backend before starting,
+    // so the host doesn't need to click "Set Configuration" separately.
+    socket.emit('startGame', { maxNumber, playerLimit, gameMode, guessMode, maxGuessesPerTarget });
   };
 
   const handleSubmitGuess = (e) => {
@@ -309,6 +322,18 @@ function App() {
 
   const handleKickPlayer = (targetSocketId) => {
     socket.emit('kickPlayer', { targetSocketId });
+  };
+
+  const handleAddBot = (tier) => {
+    socket.emit('addBot', { tier });
+  };
+
+  const handleRemoveBot = (botId) => {
+    socket.emit('removeBot', { botId });
+  };
+
+  const handleFillBots = () => {
+    socket.emit('fillWithBots', { playerLimit });
   };
 
   function renderView() {
@@ -349,6 +374,9 @@ function App() {
           handleStart={handleStart}
           socketId={socket.id}
           handleKickPlayer={handleKickPlayer}
+          handleAddBot={handleAddBot}
+          handleRemoveBot={handleRemoveBot}
+          handleFillBots={handleFillBots}
         />
       );
     }
@@ -380,6 +408,10 @@ function App() {
             eliminationLog={eliminationLog}
             guessStats={guessStats}
             onSubmitGuess={handleEliminationGuess}
+            voiceControlsEnabled={voiceControlsEnabled}
+            setVoiceControlsEnabled={setVoiceControlsEnabled}
+            voiceEnabled={voiceEnabled}
+            setVoiceEnabled={setVoiceEnabled}
           />
         );
       }
@@ -407,6 +439,10 @@ function App() {
           feedback={feedback}
           isCorrect={isCorrect}
           setShowEarlyLeaderboard={setShowEarlyLeaderboard}
+          voiceControlsEnabled={voiceControlsEnabled}
+          setVoiceControlsEnabled={setVoiceControlsEnabled}
+          voiceEnabled={voiceEnabled}
+          setVoiceEnabled={setVoiceEnabled}
         />
       );
     }

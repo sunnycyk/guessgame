@@ -1,15 +1,25 @@
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       - PORT=3001
+    ports:
+      # Exposed for local dev (direct access without Caddy)
+      - "3001:3001"
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
       - backend
+    ports:
+      # Exposed for local dev (direct access without Caddy)
+      - "8080:80"
 
   caddy:
+    # Adding a dummy profile prevents Caddy from starting on your local machine
+    profiles: [ "production" ]
     image: caddy:alpine
     restart: unless-stopped
     ports:
