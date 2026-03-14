@@ -15,6 +15,8 @@ import EliminationSetup from './components/EliminationSetup';
 import EliminationGameplay from './components/EliminationGameplay';
 import EliminationLeaderboard from './components/EliminationLeaderboard';
 import CookieDisclaimer from './components/CookieDisclaimer';
+import TournamentBracket from './components/TournamentBracket';
+import TournamentMatch from './components/TournamentMatch';
 import ReactGA from 'react-ga4';
 
 // In production, Caddy reverse-proxies /socket.io/ on the same root domain
@@ -41,6 +43,12 @@ function App() {
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
+
+  // Tournament state
+  const [tournament, setTournament] = useState(null);
+  const [tournamentFeedback, setTournamentFeedback] = useState('');
+  const [tournamentIsCorrect, setTournamentIsCorrect] = useState(false);
+  const [bestOf, setBestOf] = useState(1);
 
   // Elimination mode state
   const [gameMode, setGameMode] = useState('classic');
@@ -80,6 +88,24 @@ function App() {
       if (data.guessMode) setGuessMode(data.guessMode);
       if (data.maxGuessesPerTarget) setMaxGuessesPerTarget(data.maxGuessesPerTarget);
       if (data.eliminationResults) setEliminationResults(data.eliminationResults);
+      if (data.tournament !== undefined) {
+        setTournament(data.tournament);
+        setTournamentFeedback('');
+        setTournamentIsCorrect(false);
+      }
+    });
+
+    socket.on('tournamentGuessResult', (entry) => {
+      if (entry.guesserSocketId === socket.id) {
+        if (entry.result === 'correct') {
+          setTournamentFeedback('✨ Correct!');
+          setTournamentIsCorrect(true);
+        } else {
+          setTournamentFeedback(entry.result === 'higher' ? 'Higher! ⤴️' : 'Lower! ⤵️');
+          setTournamentIsCorrect(false);
+        }
+      }
+      // Update spectator log via tournament object received in next gameState broadcast
     });
 
     socket.on('roomCreated', (data) => {
@@ -243,6 +269,7 @@ function App() {
       socket.off('targetRerolled');
       socket.off('guessResult');
       socket.off('playerFinished');
+      socket.off('tournamentGuessResult');
       socket.off('error');
       socket.off('kicked');
     };
@@ -287,9 +314,19 @@ function App() {
   };
 
   const handleStart = () => {
-    // Always sync current lobby settings to backend before starting,
-    // so the host doesn't need to click "Set Configuration" separately.
-    socket.emit('startGame', { maxNumber, playerLimit, gameMode, guessMode, maxGuessesPerTarget });
+    if (gameMode === 'tournament') {
+      socket.emit('startTournament', { maxNumber, playerLimit, bestOf });
+    } else {
+      socket.emit('startGame', { maxNumber, playerLimit, gameMode, guessMode, maxGuessesPerTarget });
+    }
+  };
+
+  const handleStartNextTournamentMatch = () => {
+    socket.emit('startNextTournamentMatch');
+  };
+
+  const handleTournamentGuess = (val) => {
+    socket.emit('submitTournamentGuess', val);
   };
 
   const handleSubmitGuess = (e) => {
@@ -306,6 +343,9 @@ function App() {
     setGuessStats({});
     setIsCorrect(false);
     setShowEarlyLeaderboard(false);
+    setTournament(null);
+    setTournamentFeedback('');
+    setTournamentIsCorrect(false);
   };
 
   const handleToggleReady = () => {
@@ -367,6 +407,8 @@ function App() {
           setGuessMode={setGuessMode}
           maxGuessesPerTarget={maxGuessesPerTarget}
           setMaxGuessesPerTarget={setMaxGuessesPerTarget}
+          bestOf={bestOf}
+          setBestOf={setBestOf}
           handleConfigure={handleConfigure}
           players={players}
           playerLimitConfig={playerLimit}
@@ -379,6 +421,46 @@ function App() {
           handleFillBots={handleFillBots}
         />
       );
+    }
+
+    if (gameMode === 'tournament') {
+      if (gameState === 'TOURNAMENT_BRACKET' || gameState === 'TOURNAMENT_FINISHED') {
+        return (
+          <TournamentBracket
+            key="tournament-bracket"
+            bracket={tournament}
+            isHost={isHost}
+            onStartMatch={handleStartNextTournamentMatch}
+            onReset={handleReset}
+            mySocketId={mySocketId}
+            players={players}
+            gameState={gameState}
+          />
+        );
+      }
+      if (gameState === 'TOURNAMENT_PLAYING') {
+        return (
+          <>
+            <TournamentMatch
+              key="tournament-match"
+              bracket={tournament}
+              mySocketId={mySocketId}
+              maxNumber={maxNumber}
+              onSubmitGuess={handleTournamentGuess}
+              feedback={tournamentFeedback}
+              isCorrect={tournamentIsCorrect}
+            />
+            <TournamentBracket
+              key="tournament-bracket-side"
+              bracket={tournament}
+              isHost={false}
+              mySocketId={mySocketId}
+              players={players}
+              gameState={gameState}
+            />
+          </>
+        );
+      }
     }
 
     if (gameMode === 'elimination') {

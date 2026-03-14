@@ -22,6 +22,8 @@ function Lobby({
     setGuessMode,
     maxGuessesPerTarget,
     setMaxGuessesPerTarget,
+    bestOf,
+    setBestOf,
     handleConfigure,
     players,
     playerLimitConfig,
@@ -137,6 +139,13 @@ function Lobby({
                                 >
                                     Elimination
                                 </button>
+                                <button
+                                    type="button"
+                                    className={`mode-btn ${gameMode === 'tournament' ? 'mode-btn-active' : ''}`}
+                                    onClick={() => setGameMode('tournament')}
+                                >
+                                    🏆 Tournament
+                                </button>
                             </div>
                         </div>
 
@@ -186,6 +195,35 @@ function Lobby({
                                     </div>
                                 </motion.div>
                             )}
+                            {gameMode === 'tournament' && (
+                                <motion.div
+                                    key="tournament-config"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="elim-config-section"
+                                >
+                                    <div className="input-group">
+                                        <label>Format</label>
+                                        <div className="mode-selector">
+                                            {[1, 3, 5].map(n => (
+                                                <button
+                                                    key={n}
+                                                    type="button"
+                                                    className={`mode-btn ${bestOf === n ? 'mode-btn-active' : ''}`}
+                                                    onClick={() => setBestOf(n)}
+                                                >
+                                                    {n === 1 ? 'Single Match' : `Best of ${n}`}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="hint-text">
+                                            Players face each other 1v1 in a single-elimination bracket.
+                                            {bestOf > 1 ? ` First to ${Math.ceil(bestOf / 2)} round wins advances.` : ' First correct guess wins the match.'}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            )}
                         </AnimatePresence>
 
                         <button type="submit">Set Configuration</button>
@@ -205,6 +243,9 @@ function Lobby({
                     )}
                     {gameMode === 'classic' && (
                         <div className="mode-badge classic-badge">Classic Mode</div>
+                    )}
+                    {gameMode === 'tournament' && (
+                        <div className="mode-badge tournament-badge">🏆 Tournament Mode</div>
                     )}
                 </motion.div>
             )}

@@ -296,6 +296,260 @@ function runBotElimination(roomId, room, bot) {
 }
 
 // ============================================================
+// TOURNAMENT HELPERS
+// ============================================================
+
+function nextPow2(n) {
+  let p = 1;
+  while (p < n) p <<= 1;
+  return p;
+}
+
+// After a match completes, propagate its winner to the next round and
+// auto-resolve any BYE/null cases recursively.
+function propagateOneWinner(rounds, roundIdx, matchIdx) {
+  if (roundIdx + 1 >= rounds.length) return;
+  const match = rounds[roundIdx][matchIdx];
+  if (match.status !== 'completed') return;
+
+  const nextMatchIdx = Math.floor(matchIdx / 2);
+  const nextMatch = rounds[roundIdx + 1][nextMatchIdx];
+
+  if (matchIdx % 2 === 0) {
+    nextMatch.p1Id = match.winnerId;
+    nextMatch.p1Username = match.winnerUsername;
+  } else {
+    nextMatch.p2Id = match.winnerId;
+    nextMatch.p2Username = match.winnerUsername;
+  }
+
+  // Only auto-resolve once BOTH sibling matches are done
+  const siblingIdx = matchIdx % 2 === 0 ? matchIdx + 1 : matchIdx - 1;
+  if (siblingIdx >= rounds[roundIdx].length) return;
+  if (rounds[roundIdx][siblingIdx].status !== 'completed') return;
+  if (nextMatch.status !== 'pending') return;
+
+  if (!nextMatch.p1Id && !nextMatch.p2Id) {
+    nextMatch.status = 'completed'; // both BYE
+    propagateOneWinner(rounds, roundIdx + 1, nextMatchIdx);
+  } else if (!nextMatch.p1Id) {
+    nextMatch.winnerId = nextMatch.p2Id;
+    nextMatch.winnerUsername = nextMatch.p2Username;
+    nextMatch.status = 'completed';
+    propagateOneWinner(rounds, roundIdx + 1, nextMatchIdx);
+  } else if (!nextMatch.p2Id) {
+    nextMatch.winnerId = nextMatch.p1Id;
+    nextMatch.winnerUsername = nextMatch.p1Username;
+    nextMatch.status = 'completed';
+    propagateOneWinner(rounds, roundIdx + 1, nextMatchIdx);
+  }
+  // else: both real players — stays pending, needs a real match
+}
+
+function buildBracket(players, bestOf) {
+  const shuffled = [...players].sort(() => Math.random() - 0.5);
+  const size = nextPow2(shuffled.length);
+  while (shuffled.length < size) shuffled.push(null); // BYE padding
+  const numRounds = Math.log2(size);
+  const rounds = [];
+
+  // Round 1 — seed real players (BYEs are null slots)
+  const r0 = [];
+  for (let i = 0; i < size; i += 2) {
+    const p1 = shuffled[i], p2 = shuffled[i + 1];
+    r0.push({
+      id: `R1M${i / 2 + 1}`,
+      roundNum: 1,
+      matchNum: i / 2 + 1,
+      p1Id: p1?.id ?? null,
+      p1Username: p1?.username ?? null,  // null = BYE
+      p2Id: p2?.id ?? null,
+      p2Username: p2?.username ?? null,
+      winnerId: null,
+      winnerUsername: null,
+      scores: {},
+      status: 'pending'
+    });
+  }
+  rounds.push(r0);
+
+  // Future rounds — all TBD (null placeholders)
+  for (let r = 2; r <= numRounds; r++) {
+    const count = size / Math.pow(2, r);
+    rounds.push(Array.from({ length: count }, (_, m) => ({
+      id: `R${r}M${m + 1}`,
+      roundNum: r,
+      matchNum: m + 1,
+      p1Id: null, p1Username: null,
+      p2Id: null, p2Username: null,
+      winnerId: null, winnerUsername: null,
+      scores: {},
+      status: 'pending'
+    })));
+  }
+
+  // Resolve round-1 BYEs and propagate
+  for (let m = 0; m < rounds[0].length; m++) {
+    const match = rounds[0][m];
+    if (!match.p1Id && !match.p2Id) {
+      match.status = 'completed';
+      propagateOneWinner(rounds, 0, m);
+    } else if (!match.p1Id) {
+      match.winnerId = match.p2Id;
+      match.winnerUsername = match.p2Username;
+      match.status = 'completed';
+      propagateOneWinner(rounds, 0, m);
+    } else if (!match.p2Id) {
+      match.winnerId = match.p1Id;
+      match.winnerUsername = match.p1Username;
+      match.status = 'completed';
+      propagateOneWinner(rounds, 0, m);
+    }
+  }
+
+  return {
+    rounds,
+    bestOf,
+    activeRoundIdx: null,
+    activeMatchIdx: null,
+    activeWinningNumber: null,
+    activeRoundScores: {},  // { [playerId]: wins } within best-of
+    activeRoundNum: 0,
+    champion: null,
+    spectatorLog: []
+  };
+}
+
+function getNextPendingMatch(bracket) {
+  for (let r = 0; r < bracket.rounds.length; r++) {
+    for (let m = 0; m < bracket.rounds[r].length; m++) {
+      const match = bracket.rounds[r][m];
+      if (match.status === 'pending' && match.p1Id && match.p2Id) {
+        return { roundIdx: r, matchIdx: m, match };
+      }
+    }
+  }
+  return null;
+}
+
+// Shared tournament guess processor — called by socket handler and bot runner.
+// Returns { matchEnded, tournamentEnded }
+function processTournamentGuess(room, roomId, playerId, numGuess) {
+  const bracket = room.tournament;
+  const match = bracket.rounds[bracket.activeRoundIdx][bracket.activeMatchIdx];
+  if (!match || match.status !== 'active') return { matchEnded: false, tournamentEnded: false };
+  if (playerId !== match.p1Id && playerId !== match.p2Id) return { matchEnded: false, tournamentEnded: false };
+
+  const player = room.players.find(p => p.id === playerId);
+  if (!player) return { matchEnded: false, tournamentEnded: false };
+
+  let result;
+  if (numGuess === bracket.activeWinningNumber) result = 'correct';
+  else if (numGuess < bracket.activeWinningNumber) result = 'higher';
+  else result = 'lower';
+
+  const logEntry = { guesserUsername: player.username, guesserSocketId: playerId, guess: numGuess, result };
+  bracket.spectatorLog.unshift(logEntry);
+  if (bracket.spectatorLog.length > 50) bracket.spectatorLog.pop();
+  io.to(roomId).emit('tournamentGuessResult', logEntry);
+
+  if (result !== 'correct') return { matchEnded: false, tournamentEnded: false };
+
+  // Round won — update scores
+  bracket.activeRoundScores[playerId] = (bracket.activeRoundScores[playerId] || 0) + 1;
+  const winsNeeded = Math.ceil(bracket.bestOf / 2);
+
+  if (bracket.activeRoundScores[playerId] < winsNeeded) {
+    // Best-of series continues — start next round
+    bracket.activeRoundNum++;
+    bracket.activeWinningNumber = Math.floor(Math.random() * room.maxNumber) + 1;
+    // Reset bot binary-search ranges
+    clearAllBotTimeouts(room);
+    [match.p1Id, match.p2Id].forEach(pid => {
+      const bot = room.players.find(p => p.id === pid && p.isBot);
+      if (bot) { bot.botLow = 1; bot.botHigh = room.maxNumber; scheduleTournamentBotAction(roomId, bot.id); }
+    });
+    io.to(roomId).emit('gameState', {
+      gameState: 'TOURNAMENT_PLAYING',
+      gameMode: 'tournament',
+      tournament: bracket,
+      players: room.players
+    });
+    return { matchEnded: false, tournamentEnded: false };
+  }
+
+  // Match winner determined
+  clearAllBotTimeouts(room);
+  match.winnerId = playerId;
+  match.winnerUsername = player.username;
+  match.scores = { ...bracket.activeRoundScores };
+  match.status = 'completed';
+  propagateOneWinner(bracket.rounds, bracket.activeRoundIdx, bracket.activeMatchIdx);
+
+  bracket.activeRoundIdx = null;
+  bracket.activeMatchIdx = null;
+  bracket.activeWinningNumber = null;
+  bracket.activeRoundScores = {};
+  bracket.activeRoundNum = 0;
+
+  // Check if tournament is over (last round's only match completed)
+  const lastRound = bracket.rounds[bracket.rounds.length - 1];
+  if (lastRound.length === 1 && lastRound[0].winnerId) {
+    bracket.champion = { id: playerId, username: player.username };
+    room.gameState = 'TOURNAMENT_FINISHED';
+    io.to(roomId).emit('gameState', {
+      gameState: 'TOURNAMENT_FINISHED',
+      gameMode: 'tournament',
+      tournament: bracket,
+      players: room.players
+    });
+    return { matchEnded: true, tournamentEnded: true };
+  }
+
+  room.gameState = 'TOURNAMENT_BRACKET';
+  io.to(roomId).emit('gameState', {
+    gameState: 'TOURNAMENT_BRACKET',
+    gameMode: 'tournament',
+    tournament: bracket,
+    players: room.players
+  });
+  return { matchEnded: true, tournamentEnded: false };
+}
+
+function scheduleTournamentBotAction(roomId, botId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  const bot = room.players.find(p => p.id === botId && p.isBot);
+  if (!bot) return;
+
+  if (!room.botTimeouts) room.botTimeouts = {};
+  if (room.botTimeouts[botId]) clearTimeout(room.botTimeouts[botId]);
+
+  room.botTimeouts[botId] = setTimeout(() => {
+    const r = rooms.get(roomId);
+    if (!r || r.gameState !== 'TOURNAMENT_PLAYING') return;
+    const bracket = r.tournament;
+    if (!bracket || bracket.activeRoundIdx === null) return;
+
+    const match = bracket.rounds[bracket.activeRoundIdx][bracket.activeMatchIdx];
+    const b = r.players.find(p => p.id === botId && p.isBot);
+    if (!b || (b.id !== match.p1Id && b.id !== match.p2Id)) return;
+
+    const guess = makeBotGuess(b.botTier, b.botLow ?? 1, b.botHigh ?? r.maxNumber, r.maxNumber);
+    const { matchEnded } = processTournamentGuess(r, roomId, botId, guess);
+
+    if (!matchEnded) {
+      const winNum = bracket.activeWinningNumber;
+      if (winNum !== null) {
+        if (guess < winNum) b.botLow = guess + 1;
+        else if (guess > winNum) b.botHigh = guess - 1;
+      }
+      scheduleTournamentBotAction(roomId, botId);
+    }
+  }, getBotDelay(bot.botTier));
+}
+
+// ============================================================
 // UTILITIES
 // ============================================================
 
@@ -354,6 +608,7 @@ io.on('connection', (socket) => {
       eliminationLog: [],
       eliminationScores: {},
       survivorId: null,
+      tournament: null,
       botTimeouts: {}
     };
 
@@ -508,6 +763,75 @@ io.on('connection', (socket) => {
     if (room.gameState !== 'LOBBY' && room.gameState !== 'WAITING') return;
     room.players = room.players.filter(p => p.id !== botId);
     io.to(roomId).emit('playerList', room.players);
+  });
+
+  // ── Tournament ────────────────────────────────────────────
+
+  socket.on('startTournament', (config) => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo || !roomInfo.room.players.find(p => p.id === socket.id && p.isHost)) return;
+    const { roomId, room } = roomInfo;
+    if (room.players.length < 2) { socket.emit('error', 'Need at least 2 players to start a tournament'); return; }
+
+    if (config?.maxNumber) room.maxNumber = Math.max(10, parseInt(config.maxNumber) || 1000);
+    if (config?.playerLimit) room.playerLimit = Math.max(1, parseInt(config.playerLimit) || 2);
+
+    const bestOf = [1, 3, 5].includes(parseInt(config?.bestOf)) ? parseInt(config.bestOf) : 1;
+    clearAllBotTimeouts(room);
+    room.gameMode = 'tournament';
+    room.tournament = buildBracket(room.players, bestOf);
+    room.gameState = 'TOURNAMENT_BRACKET';
+
+    io.to(roomId).emit('gameState', {
+      gameState: 'TOURNAMENT_BRACKET',
+      gameMode: 'tournament',
+      maxNumber: room.maxNumber,
+      tournament: room.tournament,
+      players: room.players
+    });
+    console.log(`Tournament started in room ${roomId} — ${room.players.length} players, best of ${bestOf}`);
+  });
+
+  socket.on('startNextTournamentMatch', () => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo || !roomInfo.room.players.find(p => p.id === socket.id && p.isHost)) return;
+    const { roomId, room } = roomInfo;
+    if (room.gameMode !== 'tournament' || room.gameState !== 'TOURNAMENT_BRACKET') return;
+
+    const next = getNextPendingMatch(room.tournament);
+    if (!next) return;
+
+    const { roundIdx, matchIdx, match } = next;
+    match.status = 'active';
+    room.tournament.activeRoundIdx = roundIdx;
+    room.tournament.activeMatchIdx = matchIdx;
+    room.tournament.activeWinningNumber = Math.floor(Math.random() * room.maxNumber) + 1;
+    room.tournament.activeRoundScores = { [match.p1Id]: 0, [match.p2Id]: 0 };
+    room.tournament.activeRoundNum = 1;
+    room.tournament.spectatorLog = [];
+    room.gameState = 'TOURNAMENT_PLAYING';
+
+    // Reset bot ranges for the two active players
+    [match.p1Id, match.p2Id].forEach(pid => {
+      const bot = room.players.find(p => p.id === pid && p.isBot);
+      if (bot) { bot.botLow = 1; bot.botHigh = room.maxNumber; scheduleTournamentBotAction(roomId, bot.id); }
+    });
+
+    io.to(roomId).emit('gameState', {
+      gameState: 'TOURNAMENT_PLAYING',
+      gameMode: 'tournament',
+      tournament: room.tournament,
+      players: room.players
+    });
+    console.log(`Tournament match started: ${match.p1Username} vs ${match.p2Username}`);
+  });
+
+  socket.on('submitTournamentGuess', (guess) => {
+    const roomInfo = getRoom(socket);
+    if (!roomInfo) return;
+    const { roomId, room } = roomInfo;
+    if (room.gameMode !== 'tournament' || room.gameState !== 'TOURNAMENT_PLAYING') return;
+    processTournamentGuess(room, roomId, socket.id, parseInt(guess));
   });
 
   // ── Start game ────────────────────────────────────────────
@@ -720,6 +1044,7 @@ io.on('connection', (socket) => {
     clearAllBotTimeouts(room);
 
     room.gameState = 'LOBBY';
+    room.gameMode = room.gameMode === 'tournament' ? 'classic' : room.gameMode;
     room.results = [];
     room.gameStartTime = null;
     room.winningNumber = null;
@@ -727,6 +1052,7 @@ io.on('connection', (socket) => {
     room.eliminationLog = [];
     room.eliminationScores = {};
     room.survivorId = null;
+    room.tournament = null;
 
     room.players = room.players.map(p => ({
       ...p,
@@ -761,6 +1087,37 @@ io.on('connection', (socket) => {
     const { roomId, room } = roomInfo;
     const wasHost = (socket.id === room.hostId);
     const disconnectedPlayer = room.players.find(p => p.id === socket.id);
+
+    // Tournament forfeit: if disconnected player is in active match, opponent wins
+    if (room.gameMode === 'tournament' && room.gameState === 'TOURNAMENT_PLAYING' && room.tournament) {
+      const bracket = room.tournament;
+      const match = bracket.activeRoundIdx !== null
+        ? bracket.rounds[bracket.activeRoundIdx][bracket.activeMatchIdx]
+        : null;
+      if (match && (socket.id === match.p1Id || socket.id === match.p2Id)) {
+        const opponentId = socket.id === match.p1Id ? match.p2Id : match.p1Id;
+        const opponentUsername = socket.id === match.p1Id ? match.p2Username : match.p1Username;
+        clearAllBotTimeouts(room);
+        match.winnerId = opponentId;
+        match.winnerUsername = opponentUsername;
+        match.scores = bracket.activeRoundScores;
+        match.status = 'completed';
+        propagateOneWinner(bracket.rounds, bracket.activeRoundIdx, bracket.activeMatchIdx);
+        bracket.activeRoundIdx = null;
+        bracket.activeMatchIdx = null;
+        bracket.activeWinningNumber = null;
+
+        const lastRound = bracket.rounds[bracket.rounds.length - 1];
+        if (lastRound.length === 1 && lastRound[0].winnerId) {
+          bracket.champion = { id: opponentId, username: opponentUsername };
+          room.gameState = 'TOURNAMENT_FINISHED';
+          io.to(roomId).emit('gameState', { gameState: 'TOURNAMENT_FINISHED', gameMode: 'tournament', tournament: bracket, players: room.players });
+        } else {
+          room.gameState = 'TOURNAMENT_BRACKET';
+          io.to(roomId).emit('gameState', { gameState: 'TOURNAMENT_BRACKET', gameMode: 'tournament', tournament: bracket, players: room.players });
+        }
+      }
+    }
 
     if (
       room.gameMode === 'elimination' &&
